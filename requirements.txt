@@ -1,0 +1,22 @@
+# Lower bounds rather than exact pins, so pip installs the newest wheel for
+# whatever interpreter you are on. Exact pins are what caused pydantic-core to
+# try to compile from source on Python 3.14 — there was no cp314 wheel for the
+# pinned version, so pip fell back to building it with Rust.
+#
+# Two dependencies were deliberately removed:
+#   passlib      — imports the stdlib `crypt` module, deleted in Python 3.13.
+#                  bcrypt is used directly instead; it is what passlib called.
+#   python-jose  — effectively unmaintained and drags in ecdsa + rsa.
+#                  PyJWT does the same job and is actively released.
+
+fastapi>=0.115.6
+uvicorn[standard]>=0.34.0
+sqlmodel>=0.0.24
+pydantic>=2.10.4
+
+PyJWT>=2.9.0
+bcrypt>=4.2.0
+python-multipart>=0.0.20
+
+httpx>=0.28.1
+pytest>=8.3.4
