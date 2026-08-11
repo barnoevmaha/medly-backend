@@ -45,6 +45,7 @@ class UserResponse(BaseModel):
     competency_score: int
     points: int = 0
     is_premium: bool = False
+    show_on_leaderboard: bool = True
 
 
 def _to_response(user: User) -> UserResponse:
@@ -59,6 +60,7 @@ def _to_response(user: User) -> UserResponse:
         competency_score=user.competency_score,
         points=user.points or 0,
         is_premium=bool(user.is_premium),
+        show_on_leaderboard=bool(user.show_on_leaderboard),
     )
 
 
@@ -102,3 +104,71 @@ def login(
 @router.get("/me", response_model=UserResponse)
 def me(user: User = Depends(get_current_user)) -> UserResponse:
     return _to_response(user)
+
+
+class UpdateProfileRequest(BaseModel):
+    """Everything the Settings page is allowed to change about an account.
+
+    Notably absent: `role`, `certified`, `points` and `is_premium`. Those are
+    earned or granted elsewhere, and a settings form is not the place to edit
+    them — a client that sends them is ignored rather than obeyed.
+    """
+
+    full_name: Optional[str] = None
+    institution: Optional[str] = None
+    year_of_study: Optional[int] = None
+    show_on_leaderboard: Optional[bool] = None
+
+
+@router.patch("/me", response_model=UserResponse)
+def update_me(
+    payload: UpdateProfileRequest,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> UserResponse:
+    if payload.full_name is not None:
+        name = payload.full_name.strip()
+        if len(name) < 2:
+            raise HTTPException(status_code=422, detail="Name must be at least 2 characters")
+        user.full_name = name
+    if payload.institution is not None:
+        user.institution = payload.institution.strip() or None
+    if payload.year_of_study is not None:
+        if not 1 <= payload.year_of_study <= 10:
+            raise HTTPException(status_code=422, detail="Year of study must be between 1 and 10")
+        user.year_of_study = payload.year_of_study
+    if payload.show_on_leaderboard is not None:
+        user.show_on_leaderboard = payload.show_on_leaderboard
+
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return _to_response(user)
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    payload: PasswordChangeRequest,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> None:
+    """Change the password.
+
+    The current password is required even though the caller already holds a
+    valid token — a stolen token should not be enough to lock the owner out.
+    """
+    if not verify_password(payload.current_password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+    if payload.new_password == payload.current_password:
+        raise HTTPException(status_code=400, detail="New password must be different")
+
+    user.hashed_password = hash_password(payload.new_password)
+    session.add(user)
+    session.commit()

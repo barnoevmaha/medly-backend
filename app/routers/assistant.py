@@ -177,6 +177,25 @@ def chat(
     )
 
 
+@router.delete("/history", status_code=204)
+def clear_history(
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> None:
+    """Delete this user's assistant conversation history.
+
+    The audit trail is deliberately untouched. Conversation history is the
+    user's; the audit log is the institution's record that an AI interaction
+    happened, and a product that let people erase that would not be auditable.
+    """
+    rows = session.exec(
+        select(AssistantMessage).where(AssistantMessage.user_id == user.id)
+    ).all()
+    for row in rows:
+        session.delete(row)
+    session.commit()
+
+
 @router.get("/history/{session_id}", response_model=List[MessageOut])
 def history(
     session_id: str,

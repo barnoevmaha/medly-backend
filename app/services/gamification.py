@@ -136,10 +136,19 @@ def rank_of(session: Session, user: User) -> int:
 
 
 def leaderboard(session: Session, limit: int = 25) -> List[User]:
+    """The public board.
+
+    Users who opted out in Settings are omitted here. `rank_of` deliberately
+    still counts them, so opting out hides your name from other people without
+    quietly inflating everyone else's position.
+    """
     return list(
         session.exec(
             select(User)
-            .where(User.is_active == True)  # noqa: E712
+            .where(
+                User.is_active == True,  # noqa: E712
+                User.show_on_leaderboard == True,  # noqa: E712
+            )
             .order_by(User.points.desc(), User.created_at.asc())  # type: ignore[union-attr]
             .limit(limit)
         ).all()

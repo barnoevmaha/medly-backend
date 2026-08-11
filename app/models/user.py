@@ -34,5 +34,9 @@ class User(SQLModel, table=True):
     # Premium unlocks community creation. Enforced in the router, not the UI.
     is_premium: bool = Field(default=False, index=True)
 
+    # Privacy: opting out hides the row from the public leaderboard. The user's
+    # own rank is still calculated honestly and shown to them.
+    show_on_leaderboard: bool = Field(default=True)
+
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
