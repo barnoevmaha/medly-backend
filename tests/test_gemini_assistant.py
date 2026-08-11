@@ -220,3 +220,110 @@ def test_rules_provider_still_default(client: TestClient, student_headers: dict)
     )
     assert response.status_code == 200
     assert response.json()["provider"] == "rules"
+
+
+# --------------------------------------------------------------------------
+# streaming
+# --------------------------------------------------------------------------
+
+class FakeStream:
+    """Stands in for httpx's streaming response context manager."""
+
+    def __init__(self, status_code: int, lines: list[str], text: str = ""):
+        self.status_code = status_code
+        self._lines = lines
+        self.text = text
+        self.headers: dict = {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self):
+        return b""
+
+    def iter_lines(self):
+        yield from self._lines
+
+
+def sse(text: str) -> str:
+    return "data: " + json.dumps(
+        {"candidates": [{"content": {"parts": [{"text": text}]}}]}
+    )
+
+
+def patch_stream(monkeypatch, stream):
+    def fake_stream(self, method, url, json=None, headers=None):  # noqa: A002
+        return stream
+
+    monkeypatch.setattr(httpx.Client, "stream", fake_stream)
+
+
+def test_generate_stream_yields_fragments(gemini_on, monkeypatch) -> None:
+    patch_stream(
+        monkeypatch,
+        FakeStream(200, [sse("Myocardial "), "", sse("infarction "), sse("occurs.")]),
+    )
+    out = list(gemini.generate_stream(system_prompt="s", history=[], message="hi"))
+    assert out == ["Myocardial ", "infarction ", "occurs."]
+
+
+def test_generate_stream_maps_http_errors(gemini_on, monkeypatch) -> None:
+    patch_stream(monkeypatch, FakeStream(429, [], "quota"))
+    with pytest.raises(gemini.GeminiRateLimited):
+        list(gemini.generate_stream(system_prompt="s", history=[], message="hi"))
+
+
+def test_stream_endpoint_emits_sse_and_saves_one_message(
+    client: TestClient, student_headers: dict, gemini_on, monkeypatch
+) -> None:
+    patch_stream(monkeypatch, FakeStream(200, [sse("Acute "), sse("kidney injury.")]))
+
+    with client.stream(
+        "POST",
+        "/api/assistant/chat/stream",
+        json={"message": "Explain AKI"},
+        headers=student_headers,
+    ) as response:
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/event-stream")
+        body = "".join(response.iter_text())
+
+    assert "event: start" in body
+    assert body.count("event: chunk") == 2
+    assert "event: done" in body
+    assert "Acute " in body and "kidney injury." in body
+
+    # One assistant row for the whole answer, not one per chunk.
+    session_id = json.loads(body.split("event: start\ndata: ")[1].split("\n")[0])["session_id"]
+    history = client.get(
+        f"/api/assistant/history/{session_id}", headers=student_headers
+    ).json()
+    answers = [row for row in history if row["role"] == "assistant"]
+    assert len(answers) == 1
+    assert answers[0]["content"].startswith("Acute kidney injury.")
+
+
+def test_stream_respects_rate_limit(
+    client: TestClient, student_headers: dict, gemini_on, monkeypatch
+) -> None:
+    patch_stream(monkeypatch, FakeStream(200, [sse("ok")]))
+    monkeypatch.setattr(assistant_router._limiter, "per_minute", 1)
+
+    with client.stream(
+        "POST", "/api/assistant/chat/stream",
+        json={"message": "one"}, headers=student_headers,
+    ) as first:
+        assert first.status_code == 200
+        first.read()
+
+    blocked = client.post(
+        "/api/assistant/chat/stream", json={"message": "two"}, headers=student_headers
+    )
+    assert blocked.status_code == 429
+
+
+def test_stream_requires_authentication(client: TestClient) -> None:
+    assert client.post("/api/assistant/chat/stream", json={"message": "hi"}).status_code == 401

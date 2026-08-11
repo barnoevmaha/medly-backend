@@ -16,11 +16,12 @@ The API key is read from the environment in this process only.
 """
 from __future__ import annotations
 
+import json
 import logging
 import random
 import time
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, Iterator, List, Optional
 
 import httpx
 
@@ -137,6 +138,114 @@ def _extract_text(payload: dict) -> tuple[str, str]:
             )
         raise GeminiBadResponse(f"gemini returned an empty answer (finish={finish})")
     return text, finish
+
+
+def _build_request(
+    system_prompt: str,
+    history: List[Dict[str, str]],
+    message: str,
+    max_output_tokens: Optional[int],
+    temperature: float,
+) -> tuple[dict, dict]:
+    """The body and headers both the blocking and streaming calls share."""
+    contents = [
+        {
+            "role": "model" if turn.get("role") == "assistant" else "user",
+            "parts": [{"text": turn.get("content", "")}],
+        }
+        for turn in history
+        if turn.get("content")
+    ]
+    contents.append({"role": "user", "parts": [{"text": message}]})
+
+    body = {
+        "systemInstruction": {"parts": [{"text": system_prompt}]},
+        "contents": contents,
+        "generationConfig": {
+            "temperature": temperature,
+            "maxOutputTokens": max_output_tokens or settings.ai_max_output_tokens,
+        },
+    }
+    headers = {"x-goog-api-key": settings.gemini_api_key, "Content-Type": "application/json"}
+    return body, headers
+
+
+def generate_stream(
+    *,
+    system_prompt: str,
+    history: List[Dict[str, str]],
+    message: str,
+    max_output_tokens: Optional[int] = None,
+    temperature: float = 0.4,
+) -> Iterator[str]:
+    """Yield text fragments as Gemini produces them.
+
+    Uses `:streamGenerateContent?alt=sse`, so a fragment is forwarded the moment
+    Google emits it — nothing here waits for the full answer, and nothing here
+    paces the output artificially.
+
+    Deliberately not retried. A retry would mean replaying text the user has
+    already watched appear, so the first failure ends the stream and the caller
+    decides what to do with whatever arrived. Failures *before* the first byte
+    still raise the same classified exceptions as `generate()`.
+    """
+    if not settings.gemini_api_key:
+        raise GeminiNotConfigured("GEMINI_API_KEY is not set")
+
+    model = settings.gemini_model
+    body, headers = _build_request(
+        system_prompt, history, message, max_output_tokens, temperature
+    )
+    url = f"{settings.gemini_base_url}/models/{model}:streamGenerateContent?alt=sse"
+
+    started = time.monotonic()
+    produced = 0
+    logger.info("gemini stream start model=%s turns=%d", model, len(body["contents"]))
+
+    with httpx.Client(timeout=settings.gemini_timeout_seconds) as client:
+        with client.stream("POST", url, json=body, headers=headers) as response:
+            if response.status_code >= 400:
+                response.read()
+                _raise_for_status(response.status_code, response.text)
+
+            for line in response.iter_lines():
+                if not line or not line.startswith("data:"):
+                    continue
+                payload_text = line[5:].strip()
+                if not payload_text or payload_text == "[DONE]":
+                    continue
+                try:
+                    payload = json.loads(payload_text)
+                except ValueError:
+                    # A malformed frame is skipped rather than killing a stream
+                    # the user is already reading.
+                    logger.warning("gemini stream: unparseable frame, skipped")
+                    continue
+
+                blocked = (payload.get("promptFeedback") or {}).get("blockReason")
+                if blocked and not produced:
+                    raise GeminiBadResponse(
+                        f"gemini blocked the prompt: {blocked}",
+                        user_message=(
+                            "Medly AI could not answer that. Try rewording it as an "
+                            "educational question."
+                        ),
+                    )
+
+                for candidate in payload.get("candidates") or []:
+                    parts = ((candidate.get("content") or {}).get("parts")) or []
+                    for part in parts:
+                        text = part.get("text")
+                        if text:
+                            produced += len(text)
+                            yield text
+
+    latency_ms = int((time.monotonic() - started) * 1000)
+    logger.info(
+        "gemini stream done model=%s latency_ms=%d chars=%d", model, latency_ms, produced
+    )
+    if not produced:
+        raise GeminiBadResponse("gemini stream produced no text")
 
 
 def generate(

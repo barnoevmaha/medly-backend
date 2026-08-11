@@ -363,6 +363,25 @@ class GeminiProvider:
         )
         return AssistantReply(content=result.text, provider=f"gemini:{result.model}")
 
+    def stream(
+        self,
+        message: str,
+        history: List[Dict[str, str]],
+        context: Optional[str] = None,
+    ):
+        """Yield fragments as they arrive. Same prompt, same key, same limits."""
+        from app.services import gemini
+
+        system = MEDLY_AI_SYSTEM_PROMPT
+        if context:
+            system = f"{MEDLY_AI_SYSTEM_PROMPT}\n\n{context}"
+
+        return gemini.generate_stream(
+            system_prompt=system,
+            history=history,
+            message=message,
+        )
+
 
 _PROVIDERS = {
     "rules": RuleBasedProvider,

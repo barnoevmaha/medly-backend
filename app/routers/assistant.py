@@ -6,6 +6,7 @@ Every request follows the same path, with no bypass:
 """
 from __future__ import annotations
 
+import json
 import logging
 import time
 import uuid
@@ -13,11 +14,12 @@ from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field as PydanticField
 from sqlmodel import Session, select
 
 from app.config import settings
-from app.db import get_session
+from app.db import engine, get_session
 from app.models.assistant import AssistantMessage
 from app.models.enums import EventType, RiskLevel
 from app.models.challenge import Challenge
@@ -394,3 +396,289 @@ def history(
         )
         for row in rows
     ]
+
+
+# ==========================================================================
+# Streaming
+# ==========================================================================
+
+
+def _sse(event: str, data: dict) -> str:
+    """One Server-Sent Event frame."""
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _persist_answer(
+    *,
+    session_id: str,
+    user_id: int,
+    risk_level: RiskLevel,
+    question: str,
+    text: str,
+    provider: str,
+    interrupted: bool,
+) -> None:
+    """Save the finished answer as ONE row and write the audit entry.
+
+    Called once, after the stream ends — never per chunk. A stopped or failed
+    generation still saves what was produced, so the conversation the model
+    sees next turn matches the conversation the user is looking at.
+
+    Opens its own session on purpose. FastAPI closes `yield` dependencies
+    before a StreamingResponse body is sent, so by the time this runs the
+    request-scoped session is gone and its ORM objects are detached — which is
+    also why this takes plain ints and strings rather than a `User` row.
+    """
+    session = Session(engine)
+    answer = safety.apply_disclaimer(text, risk_level)
+    session.add(
+        AssistantMessage(
+            session_id=session_id,
+            user_id=user_id,
+            role="assistant",
+            content=answer,
+            risk_level=risk_level,
+            provider=provider,
+        )
+    )
+    session.commit()
+
+    log_event(
+        session,
+        user_id=user_id,
+        event_type=EventType.ASSISTANT_QUERY,
+        risk_level=risk_level,
+        ai_model=provider,
+        ai_version="1.0",
+        ai_output_summary=text,
+        disclaimer_shown=True,
+        session_id=session_id,
+        meta={"question": question[:200], "streamed": True, "interrupted": interrupted},
+    )
+    session.close()
+
+
+@router.post("/chat/stream")
+def chat_stream(
+    payload: ChatRequest,
+    response: Response,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Server-Sent Events: the same answer, forwarded as Gemini writes it.
+
+    Every guard from `/chat` runs here first and none of them can be skipped by
+    choosing this endpoint — length cap, safety screen, in-flight lock and the
+    per-user rate window are all applied before a single byte is streamed, so
+    they can still be reported as real HTTP status codes.
+
+    Frames:
+        event: start   {"session_id": ...}
+        event: chunk   {"text": "..."}          (many)
+        event: done    {"disclaimer": ..., "risk_level": ..., "interrupted": ...}
+        event: error   {"detail": "...", "partial": true|false}
+    """
+    session_id = payload.session_id or str(uuid.uuid4())
+
+    text = (QUICK_ACTIONS.get(payload.action) if payload.action else payload.message) or ""
+    text = text.strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="Type a question first.")
+    if len(text) > settings.ai_max_message_chars:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"That message is too long. Keep it under "
+                f"{settings.ai_max_message_chars:,} characters."
+            ),
+        )
+
+    verdict = safety.screen_message(text)
+
+    session.add(
+        AssistantMessage(
+            session_id=session_id,
+            user_id=user.id or 0,
+            role="user",
+            content=verdict.redacted_text,
+            risk_level=verdict.risk_level,
+            blocked=verdict.blocked,
+            block_reason="; ".join(verdict.reasons) or None,
+        )
+    )
+    session.commit()
+
+    # ---- refused: still a valid stream, just a very short one ---------------
+    if verdict.blocked:
+        reply_text = verdict.refusal_message or "I cannot help with that request."
+        session.add(
+            AssistantMessage(
+                session_id=session_id,
+                user_id=user.id or 0,
+                role="assistant",
+                content=reply_text,
+                risk_level=verdict.risk_level,
+                blocked=True,
+                block_reason="; ".join(verdict.reasons) or None,
+                provider="guardrail",
+            )
+        )
+        session.commit()
+        log_event(
+            session,
+            user_id=user.id,
+            event_type=EventType.ASSISTANT_BLOCKED,
+            risk_level=verdict.risk_level,
+            ai_model="guardrail",
+            ai_version="1.0",
+            ai_output_summary=reply_text,
+            blocked=True,
+            block_reason="; ".join(verdict.reasons),
+            requires_review=verdict.risk_level == RiskLevel.HIGH,
+            session_id=session_id,
+            meta={"reasons": verdict.reasons},
+        )
+
+        def refusal():
+            yield _sse("start", {"session_id": session_id})
+            yield _sse("chunk", {"text": reply_text})
+            yield _sse(
+                "done",
+                {
+                    "session_id": session_id,
+                    "blocked": True,
+                    "block_reason": "; ".join(verdict.reasons),
+                    "risk_level": verdict.risk_level.value,
+                    "disclaimer": settings.disclaimer,
+                    "interrupted": False,
+                },
+            )
+
+        return StreamingResponse(refusal(), media_type="text/event-stream")
+
+    provider = get_provider()
+    if not hasattr(provider, "stream"):
+        raise HTTPException(
+            status_code=501,
+            detail="Streaming is not available with the current assistant provider.",
+        )
+
+    history_rows = session.exec(
+        select(AssistantMessage)
+        .where(AssistantMessage.session_id == session_id, AssistantMessage.blocked == False)  # noqa: E712
+        .order_by(AssistantMessage.created_at.desc())  # type: ignore[union-attr]
+        .limit(HISTORY_TURNS * 2)
+    ).all()
+    history = _trim_history(list(history_rows), verdict.redacted_text)
+
+    kind = payload.context_kind or ("article" if payload.article_slug else None)
+    key = payload.context_key or payload.article_slug
+    context = _page_context(session, kind, key, payload.context_note)
+
+    # Same two ceilings as the blocking endpoint, applied before streaming so
+    # they can be reported as a real status code rather than buried in a frame.
+    limit_key = str(user.id)
+    if not _in_flight.acquire(limit_key):
+        raise HTTPException(
+            status_code=429,
+            detail="Medly AI is still working on your last question. Give it a moment.",
+        )
+    rate = _limiter.check(limit_key)
+    if not rate.allowed:
+        _in_flight.release(limit_key)
+        response.headers["Retry-After"] = str(rate.retry_after_seconds)
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                "You have reached the Medly AI limit for now. "
+                f"Try again in {rate.retry_after_seconds} seconds."
+            ),
+        )
+
+    # Everything the generator needs, captured as plain values while the
+    # request-scoped session is still alive.
+    user_id = user.id or 0
+    risk_level = verdict.risk_level
+    question_text = verdict.redacted_text
+
+    def event_stream():
+        collected: List[str] = []
+        interrupted = False
+        started = time.monotonic()
+        provider_name = f"gemini:{settings.gemini_model}"
+
+        try:
+            yield _sse("start", {"session_id": session_id})
+
+            for fragment in provider.stream(question_text, history, context):
+                collected.append(fragment)
+                yield _sse("chunk", {"text": fragment})
+
+            yield _sse(
+                "done",
+                {
+                    "session_id": session_id,
+                    "blocked": False,
+                    "risk_level": risk_level.value,
+                    "disclaimer": settings.disclaimer,
+                    "model": settings.gemini_model,
+                    "interrupted": False,
+                },
+            )
+
+        except GeneratorExit:
+            # The client went away — Stop was pressed, or the tab closed.
+            # Whatever arrived is still the user's, so it is saved.
+            interrupted = True
+            raise
+        except GeminiError as exc:
+            interrupted = True
+            logger.error(
+                "assistant stream failed user=%s chars=%d error=%s",
+                user_id, sum(len(c) for c in collected), exc.detail,
+            )
+            yield _sse(
+                "error", {"detail": exc.user_message, "partial": bool(collected)}
+            )
+        except Exception:  # noqa: BLE001 - never leak a traceback into the stream
+            interrupted = True
+            logger.exception("assistant stream crashed user=%s", user_id)
+            yield _sse(
+                "error",
+                {
+                    "detail": "Medly AI is temporarily unavailable. Please try again in a moment.",
+                    "partial": bool(collected),
+                },
+            )
+        finally:
+            _in_flight.release(limit_key)
+            final = "".join(collected)
+            if final:
+                try:
+                    # One row for the whole answer, not one per chunk.
+                    _persist_answer(
+                        session_id=session_id,
+                        user_id=user_id,
+                        risk_level=risk_level,
+                        question=question_text,
+                        text=final,
+                        provider=provider_name,
+                        interrupted=interrupted,
+                    )
+                except Exception:  # noqa: BLE001
+                    logger.exception("assistant stream: could not persist answer")
+            logger.info(
+                "assistant stream end user=%s latency_ms=%d chars=%d interrupted=%s context=%s",
+                user_id, int((time.monotonic() - started) * 1000), len(final),
+                interrupted, f"{kind or '-'}:{key or '-'}",
+            )
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",  # nginx/proxies must not buffer this
+            "Connection": "keep-alive",
+        },
+    )
