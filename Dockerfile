@@ -30,4 +30,10 @@ EXPOSE 8000
 
 # Railway, Render and Fly all inject $PORT. Falling back to 8000 keeps
 # `docker run` working locally without extra flags.
+#
+# The `sh -c` form is load-bearing. An exec-form CMD passes arguments straight
+# to the binary with no shell, so uvicorn would receive the literal string
+# "$PORT" and refuse to parse it as an integer. For the same reason, do not put
+# a `startCommand` containing $PORT in railway.json — it overrides this line and
+# reintroduces the bug.
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
