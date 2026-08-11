@@ -706,6 +706,7 @@ def chat_stream(
         started = time.monotonic()
         provider_name = f"gemini:{settings.gemini_model}"
         frames = 0
+        first_frame_at: Optional[float] = None
 
         def mark(stage: str, extra: str = "") -> None:
             if settings.stream_debug:
@@ -728,10 +729,19 @@ def chat_stream(
             for fragment in provider.stream(question_text, history, context):
                 collected.append(fragment)
                 frames += 1
-                mark("sending frame", f"n={frames} chars={len(fragment)}")
+                if first_frame_at is None:
+                    first_frame_at = time.monotonic() - started
+                mark("chunk sent to client", f"n={frames} chars={len(fragment)}")
                 yield _sse("chunk", {"text": fragment})
 
             mark("done frame", f"frames={frames}")
+            if settings.stream_debug:
+                logger.info(
+                    "[SSE] SUMMARY frames=%d first_at=%.2fs last_at=%.2fs "
+                    "-> compare with [GEMINI] SUMMARY: equal means this process "
+                    "forwarded every chunk the moment it arrived",
+                    frames, first_frame_at or 0.0, time.monotonic() - started,
+                )
             yield _sse(
                 "done",
                 {

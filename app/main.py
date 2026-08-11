@@ -83,9 +83,14 @@ def health() -> dict:
         "status": "ok",
         "commit": (os.getenv("RAILWAY_GIT_COMMIT_SHA") or "unknown")[:7],
         "assistant_provider": settings.assistant_provider,
-        "streaming": any(
-            getattr(route, "path", "") == "/api/assistant/chat/stream"
+        # Listing the assistant routes rather than asserting one exact string:
+        # the previous exact-match version reported false while the endpoint
+        # was demonstrably serving, which cost a debugging round. A list cannot
+        # be wrong in that way — you can see what is actually registered.
+        "assistant_routes": sorted(
+            getattr(route, "path", "")
             for route in app.routes
+            if getattr(route, "path", "").startswith("/api/assistant")
         ),
         "stream_debug": settings.stream_debug,
         "inference_engine": settings.inference_engine,

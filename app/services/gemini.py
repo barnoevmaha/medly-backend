@@ -208,13 +208,15 @@ def generate_stream(
     started = time.monotonic()
     produced = 0
     fragments = 0
+    first_at: Optional[float] = None
+    last_at: Optional[float] = None
+    gaps: List[float] = []
 
     def mark(stage: str, extra: str = "") -> None:
         """Millisecond-stamped stage marker, only when debugging is on."""
         if settings.stream_debug:
             logger.info(
-                "[GEMINI-STREAM] %s t=%.3fs %s",
-                stage, time.monotonic() - started, extra,
+                "[GEMINI] %s t=%.3fs %s", stage, time.monotonic() - started, extra
             )
 
     logger.info(
@@ -259,18 +261,47 @@ def generate_stream(
                     for part in parts:
                         text = part.get("text")
                         if text:
+                            now = time.monotonic()
                             produced += len(text)
                             fragments += 1
-                            mark(
-                                "received chunk",
-                                f"n={fragments} chars={len(text)} total={produced}",
-                            )
+                            if first_at is None:
+                                first_at = now
+                                mark(
+                                    "FIRST chunk received",
+                                    f"chars={len(text)} (time to first token)",
+                                )
+                            else:
+                                gap = now - (last_at or now)
+                                gaps.append(gap)
+                                mark(
+                                    "chunk received",
+                                    f"n={fragments} chars={len(text)} "
+                                    f"gap={gap * 1000:.0f}ms total={produced}",
+                                )
+                            last_at = now
                             yield text
 
     latency_ms = int((time.monotonic() - started) * 1000)
+
+    # One line that answers "did Gemini stream, or did it batch?" without
+    # anyone having to read a wall of per-chunk lines.
+    ttft = (first_at - started) if first_at else 0.0
+    span = (last_at - first_at) if (first_at and last_at) else 0.0
+    median_gap = sorted(gaps)[len(gaps) // 2] if gaps else 0.0
+    if fragments <= 1:
+        verdict = "GEMINI BATCHED - a single chunk carried the whole answer"
+    elif span < 0.5:
+        verdict = f"GEMINI BATCHED - {fragments} chunks all within {span * 1000:.0f}ms"
+    else:
+        verdict = (
+            f"GEMINI STREAMED - {fragments} chunks over {span:.1f}s; "
+            "any remaining delay is downstream of this process"
+        )
     logger.info(
-        "gemini stream done model=%s latency_ms=%d chars=%d fragments=%d",
-        model, latency_ms, produced, fragments,
+        "[GEMINI] SUMMARY model=%s ttft=%.2fs chunks=%d span=%.2fs "
+        "median_gap=%.0fms chars=%d thinking=%s -> %s",
+        model, ttft, fragments, span, median_gap * 1000, produced,
+        settings.gemini_thinking_level or "default", verdict,
     )
     if not produced:
         raise GeminiBadResponse("gemini stream produced no text")
