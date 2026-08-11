@@ -12,7 +12,11 @@
 fastapi>=0.115.6
 uvicorn[standard]>=0.34.0
 sqlmodel>=0.0.24
-pydantic>=2.10.4
+
+# The [email] extra pulls in email-validator, which pydantic needs for the
+# EmailStr field on the registration model. Without it the app raises at import
+# time, not at request time — the whole API fails to start.
+pydantic[email]>=2.10.4
 
 PyJWT>=2.9.0
 bcrypt>=4.2.0
@@ -25,3 +29,10 @@ psycopg[binary]>=3.2.0
 
 httpx>=0.28.1
 pytest>=8.3.4
+
+# Optional, deliberately not installed. The assistant defaults to the offline
+# rules engine, and imports these lazily inside the provider that needs them —
+# so the default path stays dependency-free and a missing package is a clear
+# runtime message rather than a failed deploy.
+#   anthropic     for MEDLY_ASSISTANT_PROVIDER=anthropic
+#   openai        for MEDLY_ASSISTANT_PROVIDER=openai
