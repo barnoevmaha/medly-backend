@@ -50,6 +50,29 @@ class Settings:
     anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
 
+    # --- Gemini ------------------------------------------------------------
+    # Server-side only. The key is never sent to the browser: the frontend
+    # talks to /api/assistant/chat, and this process talks to Google.
+    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
+    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+    gemini_base_url: str = os.getenv(
+        "GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta"
+    )
+    gemini_timeout_seconds: float = float(os.getenv("GEMINI_TIMEOUT_SECONDS", "45"))
+
+    # Cost and abuse ceilings. Every one of these is a real limit enforced in
+    # code, not a suggestion — an unbounded context window on a paid API is a
+    # billing incident waiting to happen.
+    ai_max_message_chars: int = int(os.getenv("MEDLY_AI_MAX_MESSAGE_CHARS", "4000"))
+    ai_max_output_tokens: int = int(os.getenv("MEDLY_AI_MAX_OUTPUT_TOKENS", "1600"))
+    ai_history_turns: int = int(os.getenv("MEDLY_AI_HISTORY_TURNS", "6"))
+    ai_max_context_chars: int = int(os.getenv("MEDLY_AI_MAX_CONTEXT_CHARS", "12000"))
+    ai_article_context_chars: int = int(os.getenv("MEDLY_AI_ARTICLE_CONTEXT_CHARS", "6000"))
+
+    # Per-user request ceiling, counted in this process.
+    ai_rate_limit_per_minute: int = int(os.getenv("MEDLY_AI_RATE_LIMIT_PER_MINUTE", "12"))
+    ai_rate_limit_per_hour: int = int(os.getenv("MEDLY_AI_RATE_LIMIT_PER_HOUR", "120"))
+
     inference_engine: str = os.getenv("MEDLY_INFERENCE_ENGINE", "mock")
     onnx_model_path: str = os.getenv("MEDLY_ONNX_MODEL_PATH", "")
 
