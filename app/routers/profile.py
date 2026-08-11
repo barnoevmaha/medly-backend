@@ -45,6 +45,7 @@ class LeaderboardRow(BaseModel):
     name: str
     institution: str
     points: int
+    avatar_url: str
     you: bool
 
 
@@ -56,6 +57,7 @@ class ProfileOut(BaseModel):
     role: Role
     institution: str
     year_of_study: Optional[int]
+    avatar_url: str
     is_premium: bool
     points: int
     streak_days: int
@@ -69,7 +71,6 @@ class ProfileOut(BaseModel):
     challenges_completed: int
     comments: int
     joined_at: datetime
-    avatar_url: str = ""
 
 
 def _count(session: Session, model, *where) -> int:
@@ -104,6 +105,7 @@ def get_profile(
         role=user.role,
         institution=user.institution or "",
         year_of_study=user.year_of_study,
+        avatar_url=user.avatar_url or "",
         is_premium=bool(user.is_premium),
         points=user.points or 0,
         streak_days=gamification.current_streak(user),
@@ -122,7 +124,6 @@ def get_profile(
         challenges_completed=completed_challenges,
         comments=_count(session, ArticleComment, ArticleComment.user_id == user_id),
         joined_at=user.created_at,
-        avatar_url=user.avatar_url or "",
     )
 
 
@@ -166,6 +167,7 @@ def leaderboard(
             name=person.full_name,
             institution=person.institution or "",
             points=person.points or 0,
+            avatar_url=person.avatar_url or "",
             you=person.id == user.id,
         )
         for index, person in enumerate(people)
@@ -178,6 +180,7 @@ def leaderboard(
                 name=user.full_name,
                 institution=user.institution or "",
                 points=user.points or 0,
+                avatar_url=user.avatar_url or "",
                 you=True,
             )
         )

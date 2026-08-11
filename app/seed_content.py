@@ -950,6 +950,7 @@ def _seed_communities(session: Session) -> None:
             description=str(spec["description"]),
             specialty=str(spec["specialty"]),
             icon=str(spec["icon"]),
+            cover=f"/covers/communities/{spec['slug']}.svg",
             base_members=int(spec["base_members"]),
         )
         session.add(community)
@@ -985,6 +986,7 @@ def _seed_challenges(session: Session) -> None:
             description=str(spec["description"]),
             topic=str(spec["topic"]),
             icon=str(spec["icon"]),
+            cover=f"/covers/challenges/{spec['slug']}.svg",
             difficulty=str(spec["difficulty"]),
             points=per_question * len(questions),
             base_participants=int(spec["base_participants"]),

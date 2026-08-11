@@ -18,6 +18,7 @@ class Community(SQLModel, table=True):
     description: str = Field(default="")
     specialty: str = Field(default="General", index=True)
     icon: str = Field(default="stethoscope")
+    cover: str = Field(default="")
     created_by: Optional[int] = Field(default=None, foreign_key="users.id", index=True)
     # Seeded communities carry a baseline so the card is not "1 member".
     base_members: int = Field(default=0)

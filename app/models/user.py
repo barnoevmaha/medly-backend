@@ -19,6 +19,8 @@ class User(SQLModel, table=True):
     role: Role = Field(default=Role.STUDENT, index=True)
     institution: Optional[str] = None
     year_of_study: Optional[int] = None
+    # Data URL or path. Set from Settings; rendered by <Avatar> everywhere.
+    avatar_url: str = Field(default="")
 
     # Gamification. Points are the single source of truth for rank — nothing in
     # the product is allowed to display a hardcoded score.

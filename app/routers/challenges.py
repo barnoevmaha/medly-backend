@@ -67,6 +67,7 @@ class ChallengeOut(BaseModel):
     description: str
     topic: str
     icon: str
+    cover: str
     difficulty: str
     points: int
     question_count: int
@@ -158,6 +159,7 @@ def _summary(session: Session, challenge: Challenge, user: User) -> ChallengeOut
         description=challenge.description,
         topic=challenge.topic,
         icon=challenge.icon,
+        cover=challenge.cover,
         difficulty=challenge.difficulty,
         points=challenge.points,
         question_count=len(questions),

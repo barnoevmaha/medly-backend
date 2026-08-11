@@ -35,6 +35,8 @@ class ResourceOut(BaseModel):
     duration: str
     premium: bool
     url: str
+    video_url: str
+    pdf_url: str
     cover_hue: int
     cover: str
     publisher: str
@@ -149,6 +151,8 @@ def list_resources(
             duration=resource.duration,
             premium=resource.premium,
             url=resource.url,
+            video_url=resource.video_url,
+            pdf_url=resource.pdf_url,
             cover_hue=resource.cover_hue,
             cover=resource.cover,
             publisher=resource.publisher,

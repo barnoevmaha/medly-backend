@@ -41,10 +41,10 @@ class UserResponse(BaseModel):
     role: Role
     institution: Optional[str] = None
     year_of_study: Optional[int] = None
+    avatar_url: str = ""
     points: int = 0
     is_premium: bool = False
     show_on_leaderboard: bool = True
-    avatar_url: str = ""
 
 
 def _to_response(user: User) -> UserResponse:
@@ -55,10 +55,10 @@ def _to_response(user: User) -> UserResponse:
         role=user.role,
         institution=user.institution,
         year_of_study=user.year_of_study,
+        avatar_url=user.avatar_url or "",
         points=user.points or 0,
         is_premium=bool(user.is_premium),
         show_on_leaderboard=bool(user.show_on_leaderboard),
-        avatar_url=user.avatar_url or "",
     )
 
 
@@ -115,6 +115,7 @@ class UpdateProfileRequest(BaseModel):
     full_name: Optional[str] = None
     institution: Optional[str] = None
     year_of_study: Optional[int] = None
+    avatar_url: Optional[str] = None
     show_on_leaderboard: Optional[bool] = None
 
 
@@ -135,6 +136,14 @@ def update_me(
         if not 1 <= payload.year_of_study <= 10:
             raise HTTPException(status_code=422, detail="Year of study must be between 1 and 10")
         user.year_of_study = payload.year_of_study
+    if payload.avatar_url is not None:
+        # Data URLs only, and capped — this field is rendered in an <img src>.
+        value = payload.avatar_url.strip()
+        if value and not value.startswith("data:image/"):
+            raise HTTPException(status_code=422, detail="Avatar must be an uploaded image")
+        if len(value) > 400_000:
+            raise HTTPException(status_code=422, detail="Image too large — use one under 300 KB")
+        user.avatar_url = value
     if payload.show_on_leaderboard is not None:
         user.show_on_leaderboard = payload.show_on_leaderboard
 

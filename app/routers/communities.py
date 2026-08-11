@@ -30,6 +30,7 @@ class CommunityOut(BaseModel):
     description: str
     specialty: str
     icon: str
+    cover: str
     members: int
     messages: int
     joined: bool
@@ -100,6 +101,7 @@ def _to_out(session: Session, community: Community, user: User, joined_ids: set)
         description=community.description,
         specialty=community.specialty,
         icon=community.icon,
+        cover=community.cover,
         members=_member_count(session, community),
         messages=_message_count(session, community.id or 0),
         joined=community.id in joined_ids,

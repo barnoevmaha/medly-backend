@@ -78,6 +78,10 @@ class Resource(SQLModel, table=True):
     duration: str = Field(default="")
     premium: bool = Field(default=False)
     url: str = Field(default="")
+    # Per-item destinations. Empty falls back to the shared demo asset in the
+    # player/reader route, so swapping in a real URL is a data change.
+    video_url: str = Field(default="")
+    pdf_url: str = Field(default="")
     cover_hue: int = Field(default=210)
 
     # Real metadata, so the Library filters describe something that exists.

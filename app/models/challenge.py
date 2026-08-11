@@ -17,6 +17,7 @@ class Challenge(SQLModel, table=True):
     # Free-text topic, e.g. "AI in Medical Imaging" — the questions follow it.
     topic: str = Field(default="", index=True)
     icon: str = Field(default="trophy")
+    cover: str = Field(default="")
     difficulty: str = Field(default="medium")  # easy | medium | hard
     points: int = Field(default=200)
     ends_at: Optional[datetime] = None
