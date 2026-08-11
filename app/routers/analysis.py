@@ -1,4 +1,4 @@
-"""Imaging analysis, gated behind certification and sequenced to fight automation bias.
+"""Imaging analysis, sequenced to fight automation bias.
 
 The order is deliberate and enforced server-side:
 
@@ -24,7 +24,7 @@ from app.db import get_session
 from app.models.analysis import AnalysisJob
 from app.models.enums import AnalysisStatus, EventType, Modality, RiskLevel
 from app.models.user import User
-from app.security import get_current_user, require_certified
+from app.security import get_current_user
 from app.services.audit import log_event
 from app.services.inference import get_engine
 from app.services.safety import evaluate_confidence
@@ -154,7 +154,7 @@ def submit_reading(
 def analyze(
     job_id: int,
     session: Session = Depends(get_session),
-    user: User = Depends(require_certified),
+    user: User = Depends(get_current_user),
 ) -> JobOut:
     """Step 3. Runs the model. Blocked until the student has committed a reading."""
     job = _owned(session, job_id, user)

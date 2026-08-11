@@ -35,7 +35,7 @@ def test_non_premium_student_cannot_create_a_community(
 
 
 def test_premium_student_can_create_a_community(
-    client: TestClient, certified_headers: dict
+    client: TestClient, premium_headers: dict
 ) -> None:
     response = client.post(
         "/api/communities",
@@ -44,7 +44,7 @@ def test_premium_student_can_create_a_community(
             "description": "Weekly paper discussion on chest imaging and AI-assisted reading.",
             "specialty": "Radiology",
         },
-        headers=certified_headers,
+        headers=premium_headers,
     )
     assert response.status_code == 201, response.text
     body = response.json()

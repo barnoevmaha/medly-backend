@@ -68,23 +68,23 @@ def test_a_resource_cannot_be_saved_under_the_wrong_type(
     assert response.status_code == 422
 
 
-def test_saved_holds_all_four_types_at_once(client: TestClient, certified_headers: dict) -> None:
-    articles = client.get("/api/feed/articles", headers=certified_headers).json()
+def test_saved_holds_all_four_types_at_once(client: TestClient, premium_headers: dict) -> None:
+    articles = client.get("/api/feed/articles", headers=premium_headers).json()
     client.post(
         "/api/saved",
         json={"item_type": "article", "item_key": articles[0]["slug"]},
-        headers=certified_headers,
+        headers=premium_headers,
     )
-    resources = client.get("/api/resources", headers=certified_headers).json()
+    resources = client.get("/api/resources", headers=premium_headers).json()
     for kind in ("book", "pdf", "video"):
         resource = next(item for item in resources if item["kind"] == kind)
         client.post(
             "/api/saved",
             json={"item_type": kind, "item_key": resource["slug"]},
-            headers=certified_headers,
+            headers=premium_headers,
         )
 
-    counts = client.get("/api/saved/counts", headers=certified_headers).json()
+    counts = client.get("/api/saved/counts", headers=premium_headers).json()
     assert counts["article"] >= 1
     assert counts["book"] >= 1
     assert counts["pdf"] >= 1

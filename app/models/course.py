@@ -19,9 +19,9 @@ class Course(SQLModel, table=True):
     track: str = Field(default="ai-foundations", index=True)
     level: str = Field(default="beginner")
     duration_minutes: int = Field(default=60)
-    emoji: str = Field(default="🧠")
-    # Courses flagged as certification gate the AI-assisted features.
-    is_certification: bool = Field(default=False, index=True)
+    # Lucide icon name rendered on the course card. Icons, not emoji, so the
+    # curriculum reads as a syllabus rather than a chat message.
+    icon: str = Field(default="brain")
     order: int = Field(default=0)
     published: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)

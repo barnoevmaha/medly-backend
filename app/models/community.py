@@ -17,7 +17,7 @@ class Community(SQLModel, table=True):
     # the name only — never messages or member names.
     description: str = Field(default="")
     specialty: str = Field(default="General", index=True)
-    emoji: str = Field(default="🩺")
+    icon: str = Field(default="stethoscope")
     created_by: Optional[int] = Field(default=None, foreign_key="users.id", index=True)
     # Seeded communities carry a baseline so the card is not "1 member".
     base_members: int = Field(default=0)

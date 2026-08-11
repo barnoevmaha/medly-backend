@@ -32,7 +32,7 @@ COURSES = [
         "summary": "What these models actually do, in language that survives contact with a ward round.",
         "track": "ai-foundations",
         "level": "beginner",
-        "emoji": "🧠",
+        "icon": "brain",
         "duration_minutes": 75,
         "order": 1,
         "lessons": [
@@ -134,15 +134,14 @@ COURSES = [
         ],
     },
     {
-        "slug": "ai-safety-and-ethics-certification",
-        "title": "AI Safety & Ethics Certification",
-        "summary": "The mandatory module. Pass this and AI-assisted analysis unlocks.",
+        "slug": "ai-safety-and-ethics",
+        "title": "AI Safety & Ethics",
+        "summary": "How medical AI fails, who is accountable, and what has to be recorded.",
         "track": "safety",
         "level": "core",
-        "emoji": "🛡️",
+        "icon": "shield-check",
         "duration_minutes": 60,
         "order": 2,
-        "is_certification": True,
         "lessons": [
             {
                 "title": "Introduction to AI safety in healthcare",
@@ -397,7 +396,7 @@ COURSES = [
         "summary": "Work simulated X-ray and CT cases with the safety workflow enforced end to end.",
         "track": "practice",
         "level": "intermediate",
-        "emoji": "🩻",
+        "icon": "scan",
         "duration_minutes": 90,
         "order": 3,
         "lessons": [
@@ -427,7 +426,7 @@ COURSES = [
 ]
 
 
-CERT_QUESTIONS = [
+SAFETY_QUESTIONS = [
     {
         "prompt": "A chest X-ray model reports 95% sensitivity and 95% specificity. It is used to "
                   "screen a population where the condition affects 1 in 1,000. Roughly what "
@@ -624,10 +623,9 @@ def _seed_courses(session: Session) -> None:
                 summary=str(spec["summary"]),
                 track=str(spec["track"]),
                 level=str(spec["level"]),
-                emoji=str(spec["emoji"]),
+                icon=str(spec["icon"]),
                 duration_minutes=int(spec["duration_minutes"]),
                 order=int(spec["order"]),
-                is_certification=bool(spec.get("is_certification", False)),
             )
             session.add(course)
             session.commit()
@@ -661,7 +659,7 @@ def _seed_courses(session: Session) -> None:
 
 def _seed_quiz(
     session: Session, course_slug: str, title: str, description: str,
-    specs: List[dict], is_certification: bool, passing_score: int,
+    specs: List[dict], passing_score: int,
 ) -> None:
     course = session.exec(select(Course).where(Course.slug == course_slug)).first()
     if not course:
@@ -675,7 +673,6 @@ def _seed_quiz(
         title=title,
         description=description,
         passing_score=passing_score,
-        is_certification=is_certification,
     )
     session.add(quiz)
     session.commit()
@@ -708,13 +705,13 @@ def _seed_users(session: Session) -> List[User]:
     # The premium flag is deliberately split across the two student accounts so
     # both sides of the paywall can be demonstrated without editing the database.
     people = [
-        ("student@medly.dev", "Alex Johnson", Role.STUDENT, "Columbia University", 3, False, False),
-        ("certified@medly.dev", "Priya Nair", Role.STUDENT, "Columbia University", 4, True, True),
-        ("instructor@medly.dev", "Dr. Sarah Chen", Role.INSTRUCTOR, "Columbia University", None, True, True),
-        ("admin@medly.dev", "Medly Admin", Role.ADMIN, "Medly", None, True, True),
+        ("student@medly.dev", "Alex Johnson", Role.STUDENT, "Columbia University", 3, False),
+        ("premium@medly.dev", "Priya Nair", Role.STUDENT, "Columbia University", 4, True),
+        ("instructor@medly.dev", "Dr. Sarah Chen", Role.INSTRUCTOR, "Columbia University", None, True),
+        ("admin@medly.dev", "Medly Admin", Role.ADMIN, "Medly", None, True),
     ]
     created: List[User] = []
-    for email, name, role, institution, year, certified, premium in people:
+    for email, name, role, institution, year, premium in people:
         existing = session.exec(select(User).where(User.email == email)).first()
         if existing:
             # A database created before the premium flag existed has every demo
@@ -733,9 +730,6 @@ def _seed_users(session: Session) -> List[User]:
             role=role,
             institution=institution,
             year_of_study=year,
-            certified=certified,
-            certified_at=datetime.utcnow() if certified else None,
-            competency_score=90 if certified else 0,
             is_premium=premium,
         )
         session.add(user)
@@ -794,7 +788,7 @@ def _seed_demo_activity(session: Session, users: List[User]) -> None:
 
 
 def _seed_progress(session: Session, users: List[User]) -> None:
-    student = next((u for u in users if u.email == "certified@medly.dev"), None)
+    student = next((u for u in users if u.email == "premium@medly.dev"), None)
     if not student:
         return
     if session.exec(select(Enrollment).where(Enrollment.user_id == student.id)).first():
@@ -826,7 +820,7 @@ def _seed_memberships(session: Session, users: List[User]) -> None:
 
     wanted = {
         "student@medly.dev": ["cardiology-club", "emergency-medicine"],
-        "certified@medly.dev": ["radiology-residents", "ai-in-medicine", "internal-medicine"],
+        "premium@medly.dev": ["radiology-residents", "ai-in-medicine", "internal-medicine"],
         "instructor@medly.dev": ["radiology-residents", "ai-in-medicine"],
     }
     for user in users:
@@ -849,17 +843,52 @@ def _seed_memberships(session: Session, users: List[User]) -> None:
     session.commit()
 
 
+def _rename_legacy_rows(session: Session) -> None:
+    """Carry an existing database across the renames.
+
+    Certification was removed, and two names went with it: the course slug and
+    the demo account. Without this an upgraded install would end up with both
+    the old and the new row, which is worse than either.
+    """
+    course = session.exec(
+        select(Course).where(Course.slug == "ai-safety-and-ethics-certification")
+    ).first()
+    if course and not session.exec(
+        select(Course).where(Course.slug == "ai-safety-and-ethics")
+    ).first():
+        course.slug = "ai-safety-and-ethics"
+        course.title = "AI Safety & Ethics"
+        session.add(course)
+
+    old_account = session.exec(select(User).where(User.email == "certified@medly.dev")).first()
+    if old_account and not session.exec(
+        select(User).where(User.email == "premium@medly.dev")
+    ).first():
+        old_account.email = "premium@medly.dev"
+        old_account.is_premium = True
+        session.add(old_account)
+
+    for quiz in session.exec(
+        select(Quiz).where(Quiz.title == "AI Safety & Ethics Certification Exam")
+    ).all():
+        quiz.title = "AI Safety & Ethics Knowledge Check"
+        quiz.description = "Twelve questions on bias, calibration, privacy and accountability."
+        session.add(quiz)
+
+    session.commit()
+
+
 def run() -> None:
     init_db()
     with Session(engine) as session:
+        _rename_legacy_rows(session)
         _seed_courses(session)
         _seed_quiz(
             session,
-            "ai-safety-and-ethics-certification",
-            "AI Safety & Ethics Certification Exam",
-            "Pass with 80% or above to unlock AI-assisted imaging analysis.",
-            CERT_QUESTIONS,
-            is_certification=True,
+            "ai-safety-and-ethics",
+            "AI Safety & Ethics Knowledge Check",
+            "Twelve questions on bias, calibration, privacy and accountability.",
+            SAFETY_QUESTIONS,
             passing_score=80,
         )
         _seed_quiz(
@@ -868,7 +897,6 @@ def run() -> None:
             "Foundations Knowledge Check",
             "A short check on the core concepts.",
             FOUNDATIONS_QUESTIONS,
-            is_certification=False,
             passing_score=60,
         )
         users = _seed_users(session)
@@ -880,9 +908,9 @@ def run() -> None:
         _seed_memberships(session, users)
 
     print("Seed complete.")
-    print(f"  student@medly.dev    / {DEMO_PASSWORD}   (not certified — AI locked)")
-    print(f"  certified@medly.dev  / {DEMO_PASSWORD}   (certified — AI unlocked)")
-    print(f"  instructor@medly.dev / {DEMO_PASSWORD}   (sees all audit data)")
+    print(f"  student@medly.dev    / {DEMO_PASSWORD}   (free student)")
+    print(f"  premium@medly.dev    / {DEMO_PASSWORD}   (premium student)")
+    print(f"  instructor@medly.dev / {DEMO_PASSWORD}   (teacher — authors cases)")
     print(f"  admin@medly.dev      / {DEMO_PASSWORD}")
 
 

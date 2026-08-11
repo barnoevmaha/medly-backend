@@ -46,8 +46,8 @@ def student_headers(client: TestClient) -> dict:
 
 
 @pytest.fixture
-def certified_headers(client: TestClient) -> dict:
-    return {"Authorization": f"Bearer {_token(client, 'certified@medly.dev')}"}
+def premium_headers(client: TestClient) -> dict:
+    return {"Authorization": f"Bearer {_token(client, 'premium@medly.dev')}"}
 
 
 @pytest.fixture

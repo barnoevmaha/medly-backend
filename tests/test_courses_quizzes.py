@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 def test_list_courses(client: TestClient, student_headers: dict) -> None:
     courses = client.get("/api/courses", headers=student_headers).json()
     assert len(courses) >= 3
-    assert any(c["is_certification"] for c in courses)
+    assert all("icon" in course for course in courses)
 
 
 def test_course_detail_and_lessons(client: TestClient, student_headers: dict) -> None:
@@ -27,16 +27,16 @@ def test_course_detail_and_lessons(client: TestClient, student_headers: dict) ->
 
 def test_quiz_never_leaks_answers(client: TestClient, student_headers: dict) -> None:
     quizzes = client.get(
-        "/api/quizzes/course/ai-safety-and-ethics-certification", headers=student_headers
+        "/api/quizzes/course/ai-safety-and-ethics", headers=student_headers
     ).json()
     assert quizzes
     payload = str(quizzes)
     assert "is_correct" not in payload
 
 
-def test_failing_quiz_does_not_certify(client: TestClient, student_headers: dict) -> None:
+def test_failing_quiz_is_reported_honestly(client: TestClient, student_headers: dict) -> None:
     quizzes = client.get(
-        "/api/quizzes/course/ai-safety-and-ethics-certification", headers=student_headers
+        "/api/quizzes/course/ai-safety-and-ethics", headers=student_headers
     ).json()
     quiz = quizzes[0]
     # Answer every question with the first choice — deliberately wrong in most cases.
@@ -51,7 +51,7 @@ def test_failing_quiz_does_not_certify(client: TestClient, student_headers: dict
 def test_multi_select_requires_exact_match(client: TestClient, student_headers: dict) -> None:
     """Selecting every option must not score points."""
     quizzes = client.get(
-        "/api/quizzes/course/ai-safety-and-ethics-certification", headers=student_headers
+        "/api/quizzes/course/ai-safety-and-ethics", headers=student_headers
     ).json()
     quiz = quizzes[0]
     multi = [q for q in quiz["questions"] if q["kind"] == "multi"]

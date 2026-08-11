@@ -204,9 +204,9 @@ SAFETY_STANDARD = [
     },
     {
         "id": "S6",
-        "title": "Competency gate",
-        "rule": "AI-assisted analysis stays locked until the user passes the "
-                "safety and ethics certification.",
-        "enforced_by": "security.require_certified",
+        "title": "Order of reading",
+        "rule": "The model runs only after the student has recorded their own "
+                "interpretation. Seeing the AI first is impossible, not discouraged.",
+        "enforced_by": "analysis.analyze — HTTP 409 without a prior reading",
     },
 ]

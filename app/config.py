@@ -44,7 +44,6 @@ class Settings:
     onnx_model_path: str = os.getenv("MEDLY_ONNX_MODEL_PATH", "")
 
     low_confidence_threshold: float = float(os.getenv("MEDLY_LOW_CONFIDENCE_THRESHOLD", "0.70"))
-    certification_pass_score: int = int(os.getenv("MEDLY_CERTIFICATION_PASS_SCORE", "80"))
 
     # Shown on every AI output in the product. Non-negotiable by design.
     disclaimer: str = (

@@ -41,8 +41,6 @@ class UserResponse(BaseModel):
     role: Role
     institution: Optional[str] = None
     year_of_study: Optional[int] = None
-    certified: bool
-    competency_score: int
     points: int = 0
     is_premium: bool = False
     show_on_leaderboard: bool = True
@@ -56,8 +54,6 @@ def _to_response(user: User) -> UserResponse:
         role=user.role,
         institution=user.institution,
         year_of_study=user.year_of_study,
-        certified=user.certified,
-        competency_score=user.competency_score,
         points=user.points or 0,
         is_premium=bool(user.is_premium),
         show_on_leaderboard=bool(user.show_on_leaderboard),
@@ -109,9 +105,9 @@ def me(user: User = Depends(get_current_user)) -> UserResponse:
 class UpdateProfileRequest(BaseModel):
     """Everything the Settings page is allowed to change about an account.
 
-    Notably absent: `role`, `certified`, `points` and `is_premium`. Those are
-    earned or granted elsewhere, and a settings form is not the place to edit
-    them — a client that sends them is ignored rather than obeyed.
+    Notably absent: `role`, `points` and `is_premium`. Those are earned or
+    granted elsewhere, and a settings form is not the place to edit them — a
+    client that sends them is ignored rather than obeyed.
     """
 
     full_name: Optional[str] = None

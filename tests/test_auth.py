@@ -21,7 +21,8 @@ def test_register_and_login(client: TestClient) -> None:
     me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert me.status_code == 200
     assert me.json()["email"] == "newstudent@medly.dev"
-    assert me.json()["certified"] is False
+    assert me.json()["points"] == 0
+    assert me.json()["is_premium"] is False
 
 
 def test_duplicate_email_rejected(client: TestClient) -> None:

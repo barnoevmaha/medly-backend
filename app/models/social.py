@@ -25,6 +25,10 @@ class Article(SQLModel, table=True):
     author: str = Field(default="Medly")
     author_role: str = Field(default="")
     read_minutes: int = Field(default=5)
+    # Cover art. A path under /covers, generated as SVG at build time so there
+    # are no external requests and no layout shift; `cover_alt` describes it.
+    cover: str = Field(default="")
+    cover_alt: str = Field(default="")
     # Baseline so a fresh install does not show every article on zero.
     base_likes: int = Field(default=0)
     published_at: datetime = Field(default_factory=datetime.utcnow, index=True)
@@ -68,6 +72,16 @@ class Resource(SQLModel, table=True):
     premium: bool = Field(default=False)
     url: str = Field(default="")
     cover_hue: int = Field(default=210)
+
+    # Real metadata, so the Library filters describe something that exists.
+    # Nothing here is invented at render time: if a field is blank the UI omits
+    # the row rather than showing a placeholder.
+    cover: str = Field(default="")
+    publisher: str = Field(default="")
+    year: Optional[int] = None
+    pages: Optional[int] = None
+    level: str = Field(default="", index=True)  # foundation | clinical | advanced
+    topic: str = Field(default="", index=True)
 
 
 class SavedItem(SQLModel, table=True):

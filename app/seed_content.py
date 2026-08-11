@@ -381,53 +381,80 @@ ARTICLES = [
 # ==========================================================================
 
 RESOURCES = [
+    # Books ---------------------------------------------------------------
     {"slug": "grays-anatomy-for-students", "kind": "book", "title": "Gray's Anatomy for Students",
-     "author": "Richard Drake", "rating": 4.9, "downloads": "45,200", "premium": True, "cover_hue": 210,
-     "description": "The standard regional anatomy text, organised the way dissection is taught."},
+     "author": "Richard Drake", "rating": 4.9, "downloads": "45,200", "premium": True,
+     "cover_hue": 210, "publisher": "Elsevier", "year": 2023, "pages": 1180,
+     "level": "foundation", "topic": "Anatomy",
+     "description": "Regional anatomy organised the way dissection is taught, with clinical correlations at the end of every section."},
     {"slug": "intro-clinical-medicine", "kind": "book", "title": "Introduction to Clinical Medicine",
-     "author": "Dr. James Anderson", "rating": 4.7, "downloads": "23,100", "premium": False, "cover_hue": 168,
+     "author": "Dr. James Anderson", "rating": 4.7, "downloads": "23,100", "premium": False,
+     "cover_hue": 168, "publisher": "Medly Press", "year": 2024, "pages": 640,
+     "level": "clinical", "topic": "Clinical skills",
      "description": "History taking, examination and clinical reasoning for the first ward year."},
     {"slug": "harrisons-internal-medicine", "kind": "book", "title": "Harrison's Principles of Internal Medicine",
-     "author": "J. Larry Jameson", "rating": 4.9, "downloads": "67,800", "premium": False, "cover_hue": 260,
+     "author": "J. Larry Jameson", "rating": 4.9, "downloads": "67,800", "premium": False,
+     "cover_hue": 260, "publisher": "McGraw Hill", "year": 2022, "pages": 4048,
+     "level": "advanced", "topic": "Internal medicine",
      "description": "The reference text for adult internal medicine, disease by disease."},
     {"slug": "robbins-basic-pathology", "kind": "book", "title": "Robbins Basic Pathology",
-     "author": "Vinay Kumar", "rating": 4.8, "downloads": "54,300", "premium": True, "cover_hue": 4,
-     "description": "Mechanism-first pathology, from cell injury to systemic disease."},
+     "author": "Vinay Kumar", "rating": 4.8, "downloads": "54,300", "premium": True,
+     "cover_hue": 4, "publisher": "Elsevier", "year": 2022, "pages": 952,
+     "level": "foundation", "topic": "Pathology",
+     "description": "Mechanism-first pathology, from cell injury through to systemic disease."},
     {"slug": "clinical-ai-primer", "kind": "book", "title": "A Clinician's Primer on Machine Learning",
-     "author": "Dr. Amara Okafor", "rating": 4.6, "downloads": "9,800", "premium": False, "cover_hue": 190,
-     "description": "What models do, how they fail, and what to ask before trusting one."},
+     "author": "Dr. Amara Okafor", "rating": 4.6, "downloads": "9,800", "premium": False,
+     "cover_hue": 190, "publisher": "Medly Press", "year": 2025, "pages": 288,
+     "level": "foundation", "topic": "Clinical AI",
+     "description": "What models do, how they fail, and what to ask before trusting one in a clinic."},
 
+    # PDFs ----------------------------------------------------------------
     {"slug": "pathophysiology-study-guide", "kind": "pdf", "title": "Pathophysiology Study Guide",
-     "author": "Medical Education Team", "rating": 4.8, "downloads": "18,500", "premium": True, "cover_hue": 32,
-     "description": "Condensed mechanisms with worked clinical correlations. 96 pages."},
+     "author": "Medical Education Team", "rating": 4.8, "downloads": "18,500", "premium": True,
+     "cover_hue": 32, "publisher": "Medly Press", "year": 2025, "pages": 96,
+     "level": "foundation", "topic": "Pathology",
+     "description": "Condensed mechanisms with worked clinical correlations."},
     {"slug": "pharmacology-quick-reference", "kind": "pdf", "title": "Pharmacology Quick Reference",
-     "author": "PharmEd Solutions", "rating": 4.5, "downloads": "31,200", "premium": True, "cover_hue": 288,
-     "description": "Drug classes, mechanisms and interactions on one page each."},
+     "author": "PharmEd Solutions", "rating": 4.5, "downloads": "31,200", "premium": True,
+     "cover_hue": 288, "publisher": "PharmEd", "year": 2024, "pages": 48,
+     "level": "clinical", "topic": "Pharmacology",
+     "description": "Drug classes, mechanisms and interactions, one page each."},
     {"slug": "ecg-interpretation-checklist", "kind": "pdf", "title": "ECG Interpretation Checklist",
-     "author": "Dr. Sarah Williams", "rating": 4.7, "downloads": "27,400", "premium": False, "cover_hue": 350,
+     "author": "Dr. Sarah Williams", "rating": 4.7, "downloads": "27,400", "premium": False,
+     "cover_hue": 350, "publisher": "Medly Press", "year": 2025, "pages": 12,
+     "level": "clinical", "topic": "Cardiology",
      "description": "The systematic order, the intervals, and the patterns you cannot miss."},
     {"slug": "chest-xray-review-areas", "kind": "pdf", "title": "Chest X-Ray Review Areas",
-     "author": "Radiology Teaching Group", "rating": 4.8, "downloads": "15,900", "premium": False, "cover_hue": 200,
+     "author": "Radiology Teaching Group", "rating": 4.8, "downloads": "15,900", "premium": False,
+     "cover_hue": 200, "publisher": "Medly Press", "year": 2025, "pages": 8,
+     "level": "clinical", "topic": "Radiology",
      "description": "A one-page search pattern and the five areas where findings hide."},
     {"slug": "ai-safety-checklist-imaging", "kind": "pdf", "title": "AI Safety Checklist for Imaging Deployment",
-     "author": "Medly Governance", "rating": 4.9, "downloads": "6,100", "premium": False, "cover_hue": 150,
+     "author": "Medly Governance", "rating": 4.9, "downloads": "6,100", "premium": False,
+     "cover_hue": 150, "publisher": "Medly Press", "year": 2026, "pages": 6,
+     "level": "advanced", "topic": "Clinical AI",
      "description": "Twelve questions to ask before an imaging model touches a patient."},
 
+    # Videos --------------------------------------------------------------
     {"slug": "ecg-masterclass", "kind": "video", "title": "ECG Interpretation Masterclass",
      "author": "Dr. Sarah Williams", "rating": 4.6, "downloads": "12,400", "premium": False,
-     "duration": "3h 20m", "cover_hue": 340,
-     "description": "Rate, rhythm, axis, intervals — then forty traces, worked through live."},
+     "duration": "3h 20m", "cover_hue": 340, "publisher": "Medly Studio", "year": 2025,
+     "level": "clinical", "topic": "Cardiology",
+     "description": "Rate, rhythm, axis, intervals — then forty traces worked through live."},
     {"slug": "surgical-techniques-vol-1", "kind": "video", "title": "Surgical Techniques Vol. 1",
      "author": "Dr. Michael Chen", "rating": 4.7, "downloads": "8,900", "premium": False,
-     "duration": "5h 10m", "cover_hue": 220,
+     "duration": "5h 10m", "cover_hue": 220, "publisher": "Medly Studio", "year": 2024,
+     "level": "clinical", "topic": "Surgery",
      "description": "Knots, closure, instrument handling and theatre discipline for students."},
     {"slug": "reading-chest-films", "kind": "video", "title": "Reading Chest Films Under Pressure",
      "author": "Dr. Priya Nair", "rating": 4.8, "downloads": "10,300", "premium": True,
-     "duration": "1h 45m", "cover_hue": 195,
+     "duration": "1h 45m", "cover_hue": 195, "publisher": "Medly Studio", "year": 2026,
+     "level": "clinical", "topic": "Radiology",
      "description": "A search pattern that holds at 3am, with twenty on-call cases."},
     {"slug": "automation-bias-workshop", "kind": "video", "title": "Automation Bias: A Practical Workshop",
      "author": "Medly Safety Faculty", "rating": 4.9, "downloads": "4,700", "premium": False,
-     "duration": "58m", "cover_hue": 40,
+     "duration": "58m", "cover_hue": 40, "publisher": "Medly Studio", "year": 2026,
+     "level": "advanced", "topic": "Clinical AI",
      "description": "Supervised practice at disagreeing with a confident, incorrect model."},
 ]
 
@@ -438,7 +465,7 @@ RESOURCES = [
 # ==========================================================================
 
 COMMUNITIES = [
-    {"slug": "cardiology-club", "name": "Cardiology Club", "emoji": "🫀", "specialty": "Cardiology",
+    {"slug": "cardiology-club", "name": "Cardiology Club", "icon": "heart-pulse", "specialty": "Cardiology",
      "base_members": 12450,
      "description": "Cardiovascular medicine, ECG interpretation and heart failure management.",
      "messages": [
@@ -449,7 +476,7 @@ COMMUNITIES = [
          ("Emily Davis", "This is the third inferior MI this month where aVL was the giveaway. Reciprocal "
                          "change is underrated."),
      ]},
-    {"slug": "radiology-residents", "name": "Radiology Residents", "emoji": "🩻", "specialty": "Radiology",
+    {"slug": "radiology-residents", "name": "Radiology Residents", "icon": "scan", "specialty": "Radiology",
      "base_members": 5430,
      "description": "Image interpretation, diagnostic technique and daily teaching cases.",
      "messages": [
@@ -459,7 +486,7 @@ COMMUNITIES = [
          ("Priya Nair", "That's exactly the number worth investigating. Low overrides can mean the model is "
                         "good or that nobody is really looking."),
      ]},
-    {"slug": "neurology-network", "name": "Neurology Network", "emoji": "🧠", "specialty": "Neurology",
+    {"slug": "neurology-network", "name": "Neurology Network", "icon": "brain", "specialty": "Neurology",
      "base_members": 8930,
      "description": "The nervous system, stroke pathways and neurological examination.",
      "messages": [
@@ -467,14 +494,14 @@ COMMUNITIES = [
          ("Emily Davis", "What changed? Imaging turnaround or the pathway itself?"),
          ("Dr. Amara Okafor", "Mostly pre-alert. The scanner was never the bottleneck."),
      ]},
-    {"slug": "surgery-society", "name": "Surgery Society", "emoji": "🔪", "specialty": "Surgery",
+    {"slug": "surgery-society", "name": "Surgery Society", "icon": "scissors", "specialty": "Surgery",
      "base_members": 15200,
      "description": "Surgical technique, operative case discussion and theatre etiquette.",
      "messages": [
          ("Michael Brown", "Suturing practice session Thursday 6pm, pads provided, bring loupes if you have them."),
          ("James Wilson", "Can we cover subcuticular closure? Mine still looks like a crime scene."),
      ]},
-    {"slug": "emergency-medicine", "name": "Emergency Medicine", "emoji": "🚑", "specialty": "Emergency",
+    {"slug": "emergency-medicine", "name": "Emergency Medicine", "icon": "siren", "specialty": "Emergency",
      "base_members": 11200,
      "description": "Critical care, trauma management and emergency protocols.",
      "messages": [
@@ -483,13 +510,13 @@ COMMUNITIES = [
          ("Emily Davis", "How many alerts per shift are you seeing?"),
          ("Dr. Michael Chen", "Eleven. Which is the whole problem — at that rate people stop reading them."),
      ]},
-    {"slug": "pediatrics-pals", "name": "Pediatrics Pals", "emoji": "🧸", "specialty": "Paediatrics",
+    {"slug": "pediatrics-pals", "name": "Pediatrics Pals", "icon": "baby", "specialty": "Paediatrics",
      "base_members": 7650,
      "description": "Child health, developmental milestones and paediatric emergencies.",
      "messages": [
          ("Emily Davis", "Weight-based dosing drill posted. Ten scenarios, no calculator on the first pass."),
      ]},
-    {"slug": "internal-medicine", "name": "Internal Medicine", "emoji": "🩺", "specialty": "Internal Medicine",
+    {"slug": "internal-medicine", "name": "Internal Medicine", "icon": "stethoscope", "specialty": "Internal Medicine",
      "base_members": 18900,
      "description": "Adult medicine, diagnostic reasoning and chronic disease management.",
      "messages": [
@@ -498,7 +525,7 @@ COMMUNITIES = [
          ("Priya Nair", "Ferritin is an acute phase reactant — I'd want CRP and a transferrin saturation "
                         "before calling it iron overload."),
      ]},
-    {"slug": "ai-in-medicine", "name": "AI in Medicine", "emoji": "🤖", "specialty": "Informatics",
+    {"slug": "ai-in-medicine", "name": "AI in Medicine", "icon": "cpu", "specialty": "Informatics",
      "base_members": 3120,
      "description": "Clinical AI, model evaluation, governance and safe deployment.",
      "messages": [
@@ -506,7 +533,7 @@ COMMUNITIES = [
                               "below the vendor claim, alerts on a large share of admissions."),
          ("Priya Nair", "The alert volume is the part people underestimate. Fatigue makes the true positives "
                         "worthless too."),
-         ("Dr. Sarah Chen", "This is going in the certification reading list."),
+         ("Dr. Sarah Chen", "Adding this to the AI Safety reading list."),
      ]},
 ]
 
@@ -520,7 +547,7 @@ CHALLENGES = [
         "slug": "ai-in-medical-imaging",
         "title": "AI in Medical Imaging",
         "topic": "AI in Medical Imaging",
-        "emoji": "🩻",
+        "icon": "scan",
         "difficulty": "hard",
         "points": 500,
         "base_participants": 1245,
@@ -549,8 +576,12 @@ CHALLENGES = [
                          ("The model runs faster when the reading field is empty", False),
                          ("Regulations require the overlay to load second", False),
                          ("It has no clinical effect, it is only a UI preference", False)]},
-            {"prompt": "A segmentation model returns a finding with 41% confidence on an unusual film. What "
-                       "is the appropriate interpretation?",
+            {"prompt": "This chest radiograph is shown with a model overlay reporting 41% confidence "
+                       "on a right lower zone opacity. What is the appropriate interpretation?",
+             "image_seed": "CXR-CHALLENGE-41",
+             "image_modality": "xray",
+             "image_alt": "Synthetic chest radiograph. A dashed box sits over the right lower zone, "
+                          "labelled with a 41% confidence score — below the platform's 70% threshold.",
              "explanation": "Low confidence signals the input may sit outside the model's operating "
                             "envelope. It is a prompt for closer human review, not a probability of disease.",
              "choices": [("Treat it as a flag that the input may be out of distribution and review it "
@@ -558,8 +589,12 @@ CHALLENGES = [
                          ("Treat 41% as the probability the patient has the disease", False),
                          ("Discard the case as unreadable", False),
                          ("Re-run the model until confidence exceeds the threshold", False)]},
-            {"prompt": "A saliency map highlights the region around a lesion the model flagged. What does "
-                       "that establish?",
+            {"prompt": "A saliency map highlights the region around the lesion the model flagged, as "
+                       "shown. What does that establish?",
+             "image_seed": "CXR-CHALLENGE-SALIENCY",
+             "image_modality": "xray",
+             "image_alt": "Synthetic chest radiograph with a warm heatmap patch over the left mid zone, "
+                          "roughly overlapping a flagged lesion.",
              "explanation": "Saliency shows which pixels most change the output under perturbation. It is "
                             "an estimate about the model, carries its own error, and does not confirm the "
                             "prediction is correct.",
@@ -583,7 +618,7 @@ CHALLENGES = [
         "slug": "cardiology-grand-challenge",
         "title": "Cardiology Grand Challenge",
         "topic": "Cardiac physiology and ECG",
-        "emoji": "🫀",
+        "icon": "heart-pulse",
         "difficulty": "hard",
         "points": 400,
         "base_participants": 982,
@@ -630,7 +665,7 @@ CHALLENGES = [
         "slug": "anatomy-speed-quiz",
         "title": "Anatomy Speed Quiz",
         "topic": "Human anatomy",
-        "emoji": "🦴",
+        "icon": "bone",
         "difficulty": "easy",
         "points": 150,
         "base_participants": 2341,
@@ -667,7 +702,7 @@ CHALLENGES = [
         "slug": "pharmacology-master",
         "title": "Pharmacology Master",
         "topic": "Pharmacology",
-        "emoji": "💊",
+        "icon": "pill",
         "difficulty": "medium",
         "points": 250,
         "base_participants": 756,
@@ -830,6 +865,28 @@ CASES = [
 # Seeding
 # ==========================================================================
 
+# One-line description of each cover, used as the image alt text. Written per
+# article rather than generated, because "cover image" is not alt text.
+ARTICLE_COVER_ALT = {
+    "ai-assisted-reading-what-the-evidence-says":
+        "Abstract chest radiograph with a highlighted region and a confidence bar",
+    "active-recall-the-evidence":
+        "A blank page beside a closed book, illustrating retrieval practice",
+    "virtual-anatomy-lab-cardiac-conduction":
+        "Stylised heart with the conduction pathway traced through it",
+    "automation-bias-in-the-reading-room":
+        "Two overlapping panels: a human read and a model read, disagreeing",
+    "reading-a-chest-film-systematically":
+        "Chest radiograph divided into numbered search zones",
+    "privacy-what-de-identification-misses":
+        "A scan with its metadata panel redacted line by line",
+    "sepsis-models-and-the-alarm-problem":
+        "A rising alert curve with most alerts marked as false",
+    "usmle-step-1-adaptive-practice":
+        "A question card with an adaptive difficulty ladder behind it",
+}
+
+
 def _seed_articles(session: Session) -> None:
     for spec in ARTICLES:
         if session.exec(select(Article).where(Article.slug == spec["slug"])).first():
@@ -844,6 +901,8 @@ def _seed_articles(session: Session) -> None:
                 author=str(spec["author"]),
                 author_role=str(spec["author_role"]),
                 read_minutes=int(spec["read_minutes"]),
+                cover=f"/covers/articles/{spec['slug']}.svg",
+                cover_alt=ARTICLE_COVER_ALT.get(str(spec["slug"]), ""),
                 base_likes=int(spec["base_likes"]),
                 published_at=NOW - timedelta(hours=int(spec["hours_ago"])),
             )
@@ -867,6 +926,12 @@ def _seed_resources(session: Session) -> None:
                 duration=str(spec.get("duration", "")),
                 premium=bool(spec["premium"]),
                 cover_hue=int(spec["cover_hue"]),
+                cover=f"/covers/resources/{spec['slug']}.svg",
+                publisher=str(spec.get("publisher", "")),
+                year=spec.get("year"),
+                pages=spec.get("pages"),
+                level=str(spec.get("level", "")),
+                topic=str(spec.get("topic", "")),
             )
         )
     session.commit()
@@ -884,7 +949,7 @@ def _seed_communities(session: Session) -> None:
             name=str(spec["name"]),
             description=str(spec["description"]),
             specialty=str(spec["specialty"]),
-            emoji=str(spec["emoji"]),
+            icon=str(spec["icon"]),
             base_members=int(spec["base_members"]),
         )
         session.add(community)
@@ -919,7 +984,7 @@ def _seed_challenges(session: Session) -> None:
             title=str(spec["title"]),
             description=str(spec["description"]),
             topic=str(spec["topic"]),
-            emoji=str(spec["emoji"]),
+            icon=str(spec["icon"]),
             difficulty=str(spec["difficulty"]),
             points=per_question * len(questions),
             base_participants=int(spec["base_participants"]),
@@ -937,6 +1002,9 @@ def _seed_challenges(session: Session) -> None:
                 prompt=str(question_spec["prompt"]),
                 explanation=str(question_spec["explanation"]),
                 points=per_question,
+                image_seed=question_spec.get("image_seed"),
+                image_alt=str(question_spec.get("image_alt", "")),
+                image_modality=str(question_spec.get("image_modality", "xray")),
             )
             session.add(question)
             session.commit()
@@ -1017,7 +1085,7 @@ def _seed_peer_points(session: Session, users: List[User]) -> None:
         "james.wilson@medly.dev": 2880,
         "emily.davis@medly.dev": 2640,
         "michael.brown@medly.dev": 2310,
-        "certified@medly.dev": 1450,
+        "premium@medly.dev": 1450,
         "student@medly.dev": 320,
         "instructor@medly.dev": 900,
     }
@@ -1052,9 +1120,6 @@ def _seed_peers(session: Session, password_hash: str) -> List[User]:
             role=Role.STUDENT,
             institution=institution,
             year_of_study=year,
-            certified=True,
-            certified_at=NOW - timedelta(days=30),
-            competency_score=88,
         )
         session.add(user)
         created.append(user)

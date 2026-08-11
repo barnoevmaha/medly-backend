@@ -35,6 +35,8 @@ class ArticleOut(BaseModel):
     author: str
     author_role: str
     read_minutes: int
+    cover: str
+    cover_alt: str
     published_at: datetime
     like_count: int
     comment_count: int
@@ -94,6 +96,8 @@ def _to_out(session: Session, article: Article, user_id: int, saved: set) -> Art
         author=article.author,
         author_role=article.author_role,
         read_minutes=article.read_minutes,
+        cover=article.cover,
+        cover_alt=article.cover_alt,
         published_at=article.published_at,
         like_count=article.base_likes + counts["likes"],
         comment_count=counts["comments"],

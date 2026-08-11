@@ -161,7 +161,7 @@ KNOWLEDGE: List[Dict[str, object]] = [
             "Medly teaches medical students to work with AI safely rather than assuming they "
             "will pick it up on the job.\n\n"
             "- **Courses** cover how these models work, where they fail, and the ethics around them.\n"
-            "- **Certification** must be passed before AI-assisted imaging features unlock.\n"
+            "- **Order of reading**: record your own interpretation before the model runs.\n"
             "- **Every AI interaction is logged**, so instructors can see whether students are "
             "thinking or rubber-stamping.\n\n"
             "Ask me about automation bias, calibration, dataset shift, saliency maps, or the "

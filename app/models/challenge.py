@@ -16,7 +16,7 @@ class Challenge(SQLModel, table=True):
     description: str = Field(default="")
     # Free-text topic, e.g. "AI in Medical Imaging" — the questions follow it.
     topic: str = Field(default="", index=True)
-    emoji: str = Field(default="🏆")
+    icon: str = Field(default="trophy")
     difficulty: str = Field(default="medium")  # easy | medium | hard
     points: int = Field(default=200)
     ends_at: Optional[datetime] = None
@@ -34,6 +34,15 @@ class ChallengeQuestion(SQLModel, table=True):
     prompt: str
     explanation: str = Field(default="")
     points: int = Field(default=20)
+
+    # Optional image. `image_seed` renders the same deterministic synthetic
+    # panel the imaging workbench uses, so an imaging question can actually show
+    # a film instead of describing one. `image_alt` is required whenever a seed
+    # is set — a question you cannot answer with a screen reader is a broken
+    # question, not an accessible one.
+    image_seed: Optional[str] = None
+    image_alt: str = Field(default="")
+    image_modality: str = Field(default="xray")
 
 
 class ChallengeChoice(SQLModel, table=True):

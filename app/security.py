@@ -90,20 +90,3 @@ def require_roles(*roles: Role):
     return dependency
 
 
-def require_certified(user: User = Depends(get_current_user)) -> User:
-    """Gate for AI-assisted features.
-
-    This is the safety standard made executable: no certification, no AI
-    assistance on imaging. Instructors and admins are exempt.
-    """
-    if user.role in (Role.INSTRUCTOR, Role.ADMIN):
-        return user
-    if not user.certified:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                "AI-assisted analysis is locked. Complete the AI Safety & Ethics "
-                "certification to unlock it."
-            ),
-        )
-    return user

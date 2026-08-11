@@ -59,7 +59,6 @@ class Summary(BaseModel):
     disclaimer_coverage: float
     by_event_type: Dict[str, int]
     by_risk_level: Dict[str, int]
-    certified_users: int
     total_users: int
     confidence_threshold: float
     pending_review: int
@@ -114,7 +113,6 @@ def standard() -> Dict:
     return {
         "version": "1.0",
         "confidence_threshold": settings.low_confidence_threshold,
-        "certification_pass_score": settings.certification_pass_score,
         "disclaimer": settings.disclaimer,
         "rules": SAFETY_STANDARD,
     }
@@ -206,7 +204,6 @@ def summary(
         ),
         by_event_type=dict(Counter(e.event_type.value for e in events)),
         by_risk_level=dict(Counter(e.risk_level.value for e in events)),
-        certified_users=sum(1 for u in users if u.certified),
         total_users=len(users),
         confidence_threshold=settings.low_confidence_threshold,
         pending_review=len(pending_review),

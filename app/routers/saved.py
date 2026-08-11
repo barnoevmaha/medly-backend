@@ -36,6 +36,12 @@ class ResourceOut(BaseModel):
     premium: bool
     url: str
     cover_hue: int
+    cover: str
+    publisher: str
+    year: Optional[int]
+    pages: Optional[int]
+    level: str
+    topic: str
     saved: bool
 
 
@@ -50,6 +56,8 @@ class SavedOut(BaseModel):
     meta: str
     premium: bool = False
     cover_hue: int = 210
+    cover: str = ""
+    cover_alt: str = ""
     saved_at: datetime
 
 
@@ -71,12 +79,23 @@ def _saved_keys(session: Session, user_id: int, item_type: str) -> set:
 def list_resources(
     q: Optional[str] = None,
     kind: Optional[str] = None,
+    level: Optional[str] = None,
+    topic: Optional[str] = None,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ) -> List[ResourceOut]:
+    """The library catalogue.
+
+    Every filter here maps to a column that is actually populated. There is no
+    filter for anything the data cannot answer.
+    """
     statement = select(Resource)
     if kind:
         statement = statement.where(Resource.kind == kind)
+    if level:
+        statement = statement.where(Resource.level == level)
+    if topic:
+        statement = statement.where(Resource.topic == topic)
     if q and q.strip():
         needle = f"%{q.strip().lower()}%"
         statement = statement.where(
@@ -84,6 +103,8 @@ def list_resources(
                 func.lower(Resource.title).like(needle),
                 func.lower(Resource.author).like(needle),
                 func.lower(Resource.description).like(needle),
+                func.lower(Resource.publisher).like(needle),
+                func.lower(Resource.topic).like(needle),
             )
         )
     resources = session.exec(statement.order_by(Resource.title)).all()
@@ -106,6 +127,12 @@ def list_resources(
             premium=resource.premium,
             url=resource.url,
             cover_hue=resource.cover_hue,
+            cover=resource.cover,
+            publisher=resource.publisher,
+            year=resource.year,
+            pages=resource.pages,
+            level=resource.level,
+            topic=resource.topic,
             saved=f"{resource.kind}:{resource.slug}" in saved,
         )
         for resource in resources
@@ -139,6 +166,8 @@ def list_saved(
                     description=article.excerpt,
                     href=f"/feed/{article.slug}",
                     meta=f"{article.read_minutes} min read · {article.tag}",
+                    cover=article.cover,
+                    cover_alt=article.cover_alt,
                     saved_at=row.created_at,
                 )
             )
@@ -163,6 +192,8 @@ def list_saved(
                     meta=meta,
                     premium=resource.premium,
                     cover_hue=resource.cover_hue,
+                    cover=resource.cover,
+                    cover_alt=f"Cover art for {resource.title}",
                     saved_at=row.created_at,
                 )
             )

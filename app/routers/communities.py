@@ -29,7 +29,7 @@ class CommunityOut(BaseModel):
     name: str
     description: str
     specialty: str
-    emoji: str
+    icon: str
     members: int
     messages: int
     joined: bool
@@ -55,7 +55,7 @@ class CommunityIn(BaseModel):
     name: str = PydanticField(min_length=3, max_length=60)
     description: str = PydanticField(min_length=10, max_length=280)
     specialty: str = "General"
-    emoji: str = "🩺"
+    icon: str = "stethoscope"
 
 
 class MessageIn(BaseModel):
@@ -99,7 +99,7 @@ def _to_out(session: Session, community: Community, user: User, joined_ids: set)
         name=community.name,
         description=community.description,
         specialty=community.specialty,
-        emoji=community.emoji,
+        icon=community.icon,
         members=_member_count(session, community),
         messages=_message_count(session, community.id or 0),
         joined=community.id in joined_ids,
@@ -210,7 +210,7 @@ def create_community(
         name=payload.name.strip(),
         description=payload.description.strip(),
         specialty=payload.specialty.strip() or "General",
-        emoji=payload.emoji or "🩺",
+        icon=payload.icon.strip() or "stethoscope",
         created_by=user.id,
     )
     session.add(community)

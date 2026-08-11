@@ -15,8 +15,6 @@ class Quiz(SQLModel, table=True):
     title: str
     description: str = Field(default="")
     passing_score: int = Field(default=80)
-    # A certification quiz unlocks AI-assisted mode when passed.
-    is_certification: bool = Field(default=False, index=True)
 
 
 class Question(SQLModel, table=True):

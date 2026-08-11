@@ -66,6 +66,18 @@ def _literal(value: Any) -> str:
     return "'" + str(value).replace("'", "''") + "'"
 
 
+# Columns that used to exist and no longer do. Left in place they are harmless
+# on Postgres but fatal on SQLite: a NOT NULL column the model no longer sets
+# makes every INSERT fail. Dropping them is the migration.
+DROPPED_COLUMNS: Dict[str, list] = {
+    "users": ["certified", "certified_at", "competency_score"],
+    "courses": ["is_certification", "emoji"],
+    "quizzes": ["is_certification"],
+    "challenges": ["emoji"],
+    "communities": ["emoji"],
+}
+
+
 def migrate_columns() -> None:
     """Add columns that exist on the models but not yet in the database.
 
@@ -106,6 +118,24 @@ def migrate_columns() -> None:
                             f'WHERE "{column.name}" IS NULL'
                         )
                     )
+
+    # Drop what the models no longer declare. Needs SQLite 3.35+ (2021) or any
+    # Postgres; a failure here is logged rather than fatal, because a database
+    # with a stale extra column is still a working database on Postgres.
+    for table_name, columns in DROPPED_COLUMNS.items():
+        if table_name not in tables:
+            continue
+        present = {column["name"] for column in inspector.get_columns(table_name)}
+        for column_name in columns:
+            if column_name not in present:
+                continue
+            try:
+                with engine.begin() as connection:
+                    connection.execute(
+                        text(f'ALTER TABLE "{table_name}" DROP COLUMN "{column_name}"')
+                    )
+            except Exception as error:  # pragma: no cover — depends on engine version
+                print(f"medly: could not drop {table_name}.{column_name}: {error}")
 
 
 def init_db() -> None:

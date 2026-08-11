@@ -43,6 +43,11 @@ class QuestionOut(BaseModel):
     prompt: str
     points: int
     choices: List[ChoiceOut]
+    # Optional film for imaging questions. `image_alt` carries the finding in
+    # words so the question is answerable without seeing the panel.
+    image_seed: Optional[str] = None
+    image_alt: str = ""
+    image_modality: str = "xray"
     # Present only once the question has been answered.
     answered: bool = False
     correct: Optional[bool] = None
@@ -57,7 +62,7 @@ class ChallengeOut(BaseModel):
     title: str
     description: str
     topic: str
-    emoji: str
+    icon: str
     difficulty: str
     points: int
     question_count: int
@@ -91,7 +96,7 @@ class AnswerOut(BaseModel):
     completed: bool
     total_points: int
     rank: int
-    # Display strings, e.g. "🎯 Quiz Champion" — ready to show as-is.
+    # Badge labels, ready to show as-is.
     new_badges: List[str] = []
 
 
@@ -142,7 +147,7 @@ def _summary(session: Session, challenge: Challenge, user: User) -> ChallengeOut
         title=challenge.title,
         description=challenge.description,
         topic=challenge.topic,
-        emoji=challenge.emoji,
+        icon=challenge.icon,
         difficulty=challenge.difficulty,
         points=challenge.points,
         question_count=len(questions),
@@ -200,6 +205,9 @@ def get_challenge(
                 prompt=question.prompt,
                 points=question.points,
                 choices=[ChoiceOut(id=c.id or 0, text=c.text) for c in choices],
+                image_seed=question.image_seed,
+                image_alt=question.image_alt,
+                image_modality=question.image_modality,
                 answered=answer is not None,
                 correct=answer.correct if answer else None,
                 chosen_choice_id=answer.choice_id if answer else None,
@@ -293,6 +301,7 @@ def answer(
             session.add(participant)
         session.commit()
 
+        gamification.touch_streak(session, user)
         if awarded:
             gamification.award_points(session, user, awarded)
 
@@ -320,7 +329,7 @@ def answer(
     held = gamification.sync_badges(session, user)
     # Human-readable, because this goes straight into a toast.
     new_badges = [
-        f"{gamification.BADGE_BY_KEY[key]['emoji']} {gamification.BADGE_BY_KEY[key]['label']}"
+        gamification.BADGE_BY_KEY[key]["label"]
         for key in held
         if key not in before and key in gamification.BADGE_BY_KEY
     ]

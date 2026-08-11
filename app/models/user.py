@@ -1,7 +1,7 @@
 """Users and their competency state."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from sqlmodel import Field, SQLModel
@@ -20,16 +20,16 @@ class User(SQLModel, table=True):
     institution: Optional[str] = None
     year_of_study: Optional[int] = None
 
-    # Competency gating: a student cannot use AI-assisted mode until they have
-    # passed the safety certification. This is the core of the safety standard.
-    certified: bool = Field(default=False, index=True)
-    certified_at: Optional[datetime] = None
-    competency_score: int = Field(default=0)
-
     # Gamification. Points are the single source of truth for rank — nothing in
     # the product is allowed to display a hardcoded score.
     points: int = Field(default=0, index=True)
+
+    # Streak. `last_active_on` is a date, not a timestamp: a streak counts days
+    # a student showed up, and storing the day directly makes the "did they
+    # already count today?" check a comparison rather than a calculation.
     streak_days: int = Field(default=0)
+    longest_streak: int = Field(default=0)
+    last_active_on: Optional[date] = None
 
     # Premium unlocks community creation. Enforced in the router, not the UI.
     is_premium: bool = Field(default=False, index=True)

@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api/profile", tags=["profile"])
 
 class BadgeOut(BaseModel):
     key: str
-    emoji: str
+    icon: str
     label: str
     hint: str
     earned: bool
@@ -45,7 +45,6 @@ class LeaderboardRow(BaseModel):
     name: str
     institution: str
     points: int
-    certified: bool
     you: bool
 
 
@@ -57,10 +56,10 @@ class ProfileOut(BaseModel):
     role: Role
     institution: str
     year_of_study: Optional[int]
-    certified: bool
-    competency_score: int
     is_premium: bool
     points: int
+    streak_days: int
+    longest_streak: int
     rank: int
     total_users: int
     badge_count: int
@@ -104,10 +103,10 @@ def get_profile(
         role=user.role,
         institution=user.institution or "",
         year_of_study=user.year_of_study,
-        certified=user.certified,
-        competency_score=user.competency_score,
         is_premium=bool(user.is_premium),
         points=user.points or 0,
+        streak_days=gamification.current_streak(user),
+        longest_streak=user.longest_streak or 0,
         rank=gamification.rank_of(session, user),
         total_users=gamification.total_users(session),
         badge_count=_count(session, UserBadge, UserBadge.user_id == user_id),
@@ -140,7 +139,7 @@ def badges(
     return [
         BadgeOut(
             key=badge["key"],
-            emoji=badge["emoji"],
+            icon=badge["icon"],
             label=badge["label"],
             hint=badge["hint"],
             earned=badge["key"] in earned,
@@ -165,7 +164,6 @@ def leaderboard(
             name=person.full_name,
             institution=person.institution or "",
             points=person.points or 0,
-            certified=person.certified,
             you=person.id == user.id,
         )
         for index, person in enumerate(people)
@@ -178,7 +176,6 @@ def leaderboard(
                 name=user.full_name,
                 institution=user.institution or "",
                 points=user.points or 0,
-                certified=user.certified,
                 you=True,
             )
         )

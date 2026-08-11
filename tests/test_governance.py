@@ -54,7 +54,6 @@ def test_summary_shape(client: TestClient, instructor_headers: dict) -> None:
         "override_rate",
         "block_rate",
         "disclaimer_coverage",
-        "certified_users",
         "confidence_threshold",
     ):
         assert key in body

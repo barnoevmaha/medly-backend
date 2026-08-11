@@ -21,24 +21,24 @@ from app.models.user import User
 
 # Order matters: this is the order badges render in.
 BADGES: List[Dict[str, str]] = [
-    {"key": "first_lesson", "emoji": "🌱", "label": "First Steps",
+    {"key": "first_lesson", "icon": "sprout", "label": "First Steps",
      "hint": "Complete your first lesson"},
-    {"key": "certified", "emoji": "🛡️", "label": "Certified",
-     "hint": "Pass the AI Safety & Ethics certification"},
-    {"key": "quiz_champion", "emoji": "🎯", "label": "Quiz Champion",
+    {"key": "quiz_champion", "icon": "target", "label": "Quiz Champion",
      "hint": "Earn 300 points from challenges"},
-    {"key": "point_hunter", "emoji": "🏆", "label": "Point Hunter",
+    {"key": "point_hunter", "icon": "trophy", "label": "Point Hunter",
      "hint": "Reach 1,000 total points"},
-    {"key": "bookworm", "emoji": "📚", "label": "Bookworm",
-     "hint": "Save 5 items to your library"},
-    {"key": "contributor", "emoji": "💡", "label": "Contributor",
+    {"key": "bookworm", "icon": "library", "label": "Bookworm",
+     "hint": "Save 5 items from the library"},
+    {"key": "contributor", "icon": "message-square", "label": "Contributor",
      "hint": "Leave 3 comments"},
-    {"key": "connector", "emoji": "🤝", "label": "Connector",
+    {"key": "connector", "icon": "users", "label": "Connector",
      "hint": "Join 3 communities"},
-    {"key": "scholar", "emoji": "🎓", "label": "Scholar",
+    {"key": "scholar", "icon": "graduation-cap", "label": "Scholar",
      "hint": "Complete 8 lessons"},
-    {"key": "second_reader", "emoji": "🔬", "label": "Second Reader",
+    {"key": "second_reader", "icon": "scan-eye", "label": "Second Reader",
      "hint": "Commit a decision on 3 imaging cases"},
+    {"key": "consistent", "icon": "flame", "label": "Consistent",
+     "hint": "Study on 7 different days in a row"},
 ]
 
 BADGE_BY_KEY = {badge["key"]: badge for badge in BADGES}
@@ -49,6 +49,45 @@ def _count(session: Session, model, *where) -> int:
     for clause in where:
         statement = statement.where(clause)
     return int(session.exec(statement).one())
+
+
+def touch_streak(session: Session, user: User) -> int:
+    """Record that the user studied today and return the current streak.
+
+    Called from the places that represent actual study — answering a challenge
+    question, completing a lesson, submitting a quiz. Deliberately *not* called
+    on page loads: a streak that increments for opening the app measures
+    nothing and rewards nothing.
+    """
+    today = datetime.utcnow().date()
+    last = user.last_active_on
+
+    if last == today:
+        return user.streak_days or 0
+    if last is not None and (today - last).days == 1:
+        user.streak_days = (user.streak_days or 0) + 1
+    else:
+        # First activity, or a missed day: the streak restarts at today.
+        user.streak_days = 1
+
+    user.last_active_on = today
+    user.longest_streak = max(user.longest_streak or 0, user.streak_days)
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user.streak_days
+
+
+def current_streak(user: User) -> int:
+    """The streak as it stands today, without writing anything.
+
+    A stored streak goes stale the moment a day passes without activity, so a
+    read has to check the date rather than trust the counter.
+    """
+    if not user.last_active_on:
+        return 0
+    gap = (datetime.utcnow().date() - user.last_active_on).days
+    return user.streak_days or 0 if gap <= 1 else 0
 
 
 def award_points(session: Session, user: User, amount: int) -> int:
@@ -93,8 +132,8 @@ def earned_keys(session: Session, user: User) -> List[str]:
 
     tests = {
         "first_lesson": lessons_done >= 1,
-        "certified": bool(user.certified),
         "quiz_champion": challenge_points >= 300,
+        "consistent": (user.longest_streak or 0) >= 7,
         "point_hunter": (user.points or 0) >= 1000,
         "bookworm": saved >= 5,
         "contributor": comments >= 3,

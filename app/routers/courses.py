@@ -14,6 +14,7 @@ from app.models.enums import EventType, LessonKind, ProgressStatus
 from app.models.user import User
 from app.security import get_current_user
 from app.services.audit import log_event
+from app.services.gamification import touch_streak
 
 router = APIRouter(prefix="/api/courses", tags=["courses"])
 
@@ -41,8 +42,7 @@ class CourseSummary(BaseModel):
     track: str
     level: str
     duration_minutes: int
-    emoji: str
-    is_certification: bool
+    icon: str
     lesson_count: int
     enrolled: bool = False
     progress_pct: int = 0
@@ -123,6 +123,8 @@ def complete_lesson(
     session.add(progress)
     session.commit()
 
+    touch_streak(session, user)
+
     log_event(
         session,
         user_id=user.id,
@@ -170,8 +172,7 @@ def list_courses(
                 track=course.track,
                 level=course.level,
                 duration_minutes=course.duration_minutes,
-                emoji=course.emoji,
-                is_certification=course.is_certification,
+                icon=course.icon,
                 lesson_count=len(lesson_ids),
                 enrolled=course.id in enrolled_ids,
                 progress_pct=round(done / len(lesson_ids) * 100) if lesson_ids else 0,
@@ -209,8 +210,7 @@ def get_course(
         track=course.track,
         level=course.level,
         duration_minutes=course.duration_minutes,
-        emoji=course.emoji,
-        is_certification=course.is_certification,
+        icon=course.icon,
         lesson_count=len(lesson_ids),
         enrolled=enrolled is not None,
         progress_pct=round(done / len(lesson_ids) * 100) if lesson_ids else 0,
@@ -255,8 +255,7 @@ def enroll(
         track=course.track,
         level=course.level,
         duration_minutes=course.duration_minutes,
-        emoji=course.emoji,
-        is_certification=course.is_certification,
+        icon=course.icon,
         lesson_count=len(lessons),
         enrolled=True,
         progress_pct=0,

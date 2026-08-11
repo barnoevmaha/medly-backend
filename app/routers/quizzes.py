@@ -1,4 +1,4 @@
-"""Quizzes, grading, and the certification that unlocks AI features."""
+"""Quizzes and grading."""
 from __future__ import annotations
 
 import json
@@ -9,7 +9,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
-from app.config import settings
 from app.db import get_session
 from app.models.course import Course
 from app.models.enums import EventType, RiskLevel
@@ -17,7 +16,7 @@ from app.models.quiz import Choice, Question, Quiz, QuizAttempt
 from app.models.user import User
 from app.security import get_current_user
 from app.services.audit import log_event
-from app.services.gamification import sync_badges
+from app.services.gamification import sync_badges, touch_streak
 from app.services.scoring import competency_band, grade
 
 router = APIRouter(prefix="/api/quizzes", tags=["quizzes"])
@@ -43,7 +42,6 @@ class QuizOut(BaseModel):
     title: str
     description: str
     passing_score: int
-    is_certification: bool
     questions: List[QuestionOut]
 
 
@@ -75,8 +73,6 @@ class SubmitResponse(BaseModel):
     passed: bool
     passing_score: int
     band: str
-    certified: bool
-    certification_unlocked: bool
     points_awarded: int = 0
     total_points: int = 0
     results: List[QuestionResult]
@@ -157,7 +153,6 @@ def _quiz_out(session: Session, quiz: Quiz) -> QuizOut:
         title=quiz.title,
         description=quiz.description,
         passing_score=quiz.passing_score,
-        is_certification=quiz.is_certification,
         questions=out_questions,
     )
 
@@ -201,15 +196,6 @@ def submit(
     )
     session.add(attempt)
 
-    # Passing a certification quiz unlocks AI-assisted features. This is the
-    # competency gate from the safety standard (S6).
-    newly_certified = False
-    if passed and quiz.is_certification and score >= settings.certification_pass_score:
-        if not user.certified:
-            newly_certified = True
-        user.certified = True
-        user.certified_at = datetime.utcnow()
-
     # Points for a pass, once per quiz. `previously_passed` is checked before
     # this attempt is committed, so resitting a quiz cannot be farmed.
     previously_passed = session.exec(
@@ -221,14 +207,14 @@ def submit(
     ).first()
     quiz_points = 0
     if passed and not previously_passed:
-        quiz_points = 250 if quiz.is_certification else 100
+        quiz_points = 100
         user.points = (user.points or 0) + quiz_points
 
-    user.competency_score = max(user.competency_score, score)
     session.add(user)
     session.commit()
     session.refresh(attempt)
     session.refresh(user)
+    touch_streak(session, user)
     sync_badges(session, user)
 
     log_event(
@@ -239,26 +225,14 @@ def submit(
         resource_type="quiz",
         resource_id=quiz_id,
         human_decision=f"score={score}",
-        meta={"passed": passed, "certification": quiz.is_certification},
+        meta={"passed": passed},
     )
-    if newly_certified:
-        log_event(
-            session,
-            user_id=user.id,
-            event_type=EventType.CERTIFICATION_EARNED,
-            resource_type="quiz",
-            resource_id=quiz_id,
-            meta={"score": score},
-        )
-
     return SubmitResponse(
         attempt_id=attempt.id or 0,
         score=score,
         passed=passed,
         passing_score=quiz.passing_score,
         band=competency_band(score),
-        certified=user.certified,
-        certification_unlocked=newly_certified,
         points_awarded=quiz_points,
         total_points=user.points or 0,
         results=[QuestionResult(**r) for r in outcome["results"]],
