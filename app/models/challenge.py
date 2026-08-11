@@ -16,6 +16,14 @@ class Challenge(SQLModel, table=True):
     description: str = Field(default="")
     # Free-text topic, e.g. "AI in Medical Imaging" — the questions follow it.
     topic: str = Field(default="", index=True)
+    # Machine-translated on first read in that language and cached here from
+    # then on — see app/services/translate.py and app/services/localize.py.
+    title_ru: str = Field(default="")
+    title_uz: str = Field(default="")
+    description_ru: str = Field(default="")
+    description_uz: str = Field(default="")
+    topic_ru: str = Field(default="")
+    topic_uz: str = Field(default="")
     icon: str = Field(default="trophy")
     cover: str = Field(default="")
     difficulty: str = Field(default="medium")  # easy | medium | hard
@@ -39,6 +47,11 @@ class ChallengeQuestion(SQLModel, table=True):
     order: int = Field(default=0)
     prompt: str
     explanation: str = Field(default="")
+    # Machine-translated on demand and cached — see app/services/localize.py.
+    prompt_ru: str = Field(default="")
+    prompt_uz: str = Field(default="")
+    explanation_ru: str = Field(default="")
+    explanation_uz: str = Field(default="")
     points: int = Field(default=20)
     # mcq | true_false | numerical | short
     kind: str = Field(default="mcq")
@@ -67,6 +80,8 @@ class ChallengeChoice(SQLModel, table=True):
     question_id: int = Field(foreign_key="challenge_questions.id", index=True)
     order: int = Field(default=0)
     text: str
+    text_ru: str = Field(default="")
+    text_uz: str = Field(default="")
     is_correct: bool = Field(default=False)
 
 

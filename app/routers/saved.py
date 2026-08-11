@@ -13,10 +13,11 @@ from pydantic import BaseModel
 from sqlmodel import Session, func, or_, select
 
 from app.db import get_session
+from app.lang import get_lang
 from app.models.social import Article, BookProgress, Resource, SavedItem
 from app.models.user import User
 from app.security import get_current_user
-from app.services import gamification
+from app.services import gamification, localize
 
 router = APIRouter(prefix="/api", tags=["saved"])
 
@@ -92,6 +93,7 @@ def list_resources(
     sort: Optional[str] = "title",
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> List[ResourceOut]:
     """The library catalogue.
 
@@ -138,6 +140,7 @@ def list_resources(
     for item_type in ("book", "pdf", "video"):
         saved |= {f"{item_type}:{key}" for key in _saved_keys(session, user.id or 0, item_type)}
 
+    localize.ensure_fields(session, localize.fields_for(resources, ("description",)), lang)
     return [
         ResourceOut(
             id=resource.id or 0,
@@ -145,7 +148,7 @@ def list_resources(
             kind=resource.kind,
             title=resource.title,
             author=resource.author,
-            description=resource.description,
+            description=localize.read(resource, "description", lang),
             rating=resource.rating,
             downloads=resource.downloads,
             duration=resource.duration,
@@ -224,16 +227,36 @@ def list_saved(
     item_type: Optional[str] = Query(default=None),
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> List[SavedOut]:
     statement = select(SavedItem).where(SavedItem.user_id == user.id)
     if item_type and item_type != "all":
         statement = statement.where(SavedItem.item_type == item_type)
     rows = session.exec(statement.order_by(SavedItem.created_at.desc())).all()  # type: ignore[union-attr]
 
+    articles: dict[str, Article] = {}
+    resources: dict[str, Resource] = {}
+    for row in rows:
+        if row.item_type == "article" and row.item_key not in articles:
+            found = session.exec(select(Article).where(Article.slug == row.item_key)).first()
+            if found:
+                articles[row.item_key] = found
+        elif row.item_type != "article" and row.item_key not in resources:
+            found = session.exec(select(Resource).where(Resource.slug == row.item_key)).first()
+            if found:
+                resources[row.item_key] = found
+
+    localize.ensure_fields(
+        session, localize.fields_for(list(articles.values()), ("title", "excerpt")), lang
+    )
+    localize.ensure_fields(
+        session, localize.fields_for(list(resources.values()), ("description",)), lang
+    )
+
     out: List[SavedOut] = []
     for row in rows:
         if row.item_type == "article":
-            article = session.exec(select(Article).where(Article.slug == row.item_key)).first()
+            article = articles.get(row.item_key)
             if not article:
                 continue
             out.append(
@@ -241,9 +264,9 @@ def list_saved(
                     id=row.id or 0,
                     item_type="article",
                     item_key=row.item_key,
-                    title=article.title,
+                    title=localize.read(article, "title", lang),
                     subtitle=article.author,
-                    description=article.excerpt,
+                    description=localize.read(article, "excerpt", lang),
                     href=f"/feed/{article.slug}",
                     meta=f"{article.read_minutes} min read · {article.tag}",
                     cover=article.cover,
@@ -252,9 +275,7 @@ def list_saved(
                 )
             )
         else:
-            resource = session.exec(
-                select(Resource).where(Resource.slug == row.item_key)
-            ).first()
+            resource = resources.get(row.item_key)
             if not resource:
                 continue
             meta = resource.duration or f"{resource.downloads} downloads"
@@ -265,7 +286,7 @@ def list_saved(
                     item_key=row.item_key,
                     title=resource.title,
                     subtitle=resource.author,
-                    description=resource.description,
+                    description=localize.read(resource, "description", lang),
                     # Empty when the demo resource has no file behind it. The UI
                     # says so rather than offering a button that goes nowhere.
                     href=resource.url,
@@ -285,6 +306,7 @@ def save_item(
     payload: SaveIn,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> SavedOut:
     """Save something. Saving twice returns the existing row, never a duplicate."""
     if payload.item_type not in ITEM_TYPES:
@@ -328,7 +350,7 @@ def save_item(
     entry = next(
         (
             item
-            for item in list_saved(item_type=payload.item_type, session=session, user=user)
+            for item in list_saved(item_type=payload.item_type, session=session, user=user, lang=lang)
             if item.item_key == payload.item_key
         ),
         None,

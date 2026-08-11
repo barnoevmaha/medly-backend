@@ -22,6 +22,16 @@ class Article(SQLModel, table=True):
     title: str
     excerpt: str = Field(default="")
     body_md: str = Field(default="")
+    # Machine-translated on first read in that language and cached here from
+    # then on — see app/services/translate.py and app/services/localize.py.
+    # Blank means "not translated yet"; the API falls back to English, never
+    # blank text.
+    title_ru: str = Field(default="")
+    title_uz: str = Field(default="")
+    excerpt_ru: str = Field(default="")
+    excerpt_uz: str = Field(default="")
+    body_md_ru: str = Field(default="")
+    body_md_uz: str = Field(default="")
     author: str = Field(default="Medly")
     author_role: str = Field(default="")
     read_minutes: int = Field(default=5)
@@ -73,6 +83,11 @@ class Resource(SQLModel, table=True):
     title: str
     author: str = Field(default="")
     description: str = Field(default="")
+    # The title is a real published work's title and is not translated (the
+    # same convention as author/publisher below). The description is prose
+    # about the item, machine-translated on demand — see localize.py.
+    description_ru: str = Field(default="")
+    description_uz: str = Field(default="")
     rating: float = Field(default=0.0)
     downloads: str = Field(default="")
     duration: str = Field(default="")

@@ -9,10 +9,11 @@ from pydantic import BaseModel, Field as PydanticField
 from sqlmodel import Session, func, or_, select
 
 from app.db import get_session
+from app.lang import get_lang
 from app.models.social import Article, ArticleComment, ArticleLike, SavedItem
 from app.models.user import User
 from app.security import get_current_user
-from app.services import gamification
+from app.services import gamification, localize
 
 router = APIRouter(prefix="/api/feed", tags=["feed"])
 
@@ -86,14 +87,14 @@ def _saved_slugs(session: Session, user_id: int) -> set:
     return {row.item_key for row in rows}
 
 
-def _to_out(session: Session, article: Article, user_id: int, saved: set) -> ArticleOut:
+def _to_out(session: Session, article: Article, user_id: int, saved: set, lang: str) -> ArticleOut:
     counts = _counts(session, article.id or 0, user_id)
     return ArticleOut(
         id=article.id or 0,
         slug=article.slug,
         tag=article.tag,
-        title=article.title,
-        excerpt=article.excerpt,
+        title=localize.read(article, "title", lang),
+        excerpt=localize.read(article, "excerpt", lang),
         author=article.author,
         author_role=article.author_role,
         read_minutes=article.read_minutes,
@@ -115,6 +116,7 @@ def list_articles(
     language: Optional[str] = None,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> List[ArticleOut]:
     """List the feed.
 
@@ -140,7 +142,8 @@ def list_articles(
         )
     articles = session.exec(statement.order_by(Article.published_at.desc())).all()  # type: ignore[union-attr]
     saved = _saved_slugs(session, user.id or 0)
-    return [_to_out(session, article, user.id or 0, saved) for article in articles]
+    localize.ensure_fields(session, localize.fields_for(articles, ("title", "excerpt")), lang)
+    return [_to_out(session, article, user.id or 0, saved, lang) for article in articles]
 
 
 @router.get("/articles/{slug}", response_model=ArticleDetailOut)
@@ -148,13 +151,15 @@ def get_article(
     slug: str,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> ArticleDetailOut:
     article = session.exec(select(Article).where(Article.slug == slug)).first()
     if not article or not article.published:
         raise HTTPException(status_code=404, detail="Article not found")
 
     saved = _saved_slugs(session, user.id or 0)
-    base = _to_out(session, article, user.id or 0, saved)
+    localize.ensure_fields(session, [(article, "title"), (article, "excerpt"), (article, "body_md")], lang)
+    base = _to_out(session, article, user.id or 0, saved, lang)
 
     rows = session.exec(
         select(ArticleComment, User)
@@ -165,7 +170,7 @@ def get_article(
 
     return ArticleDetailOut(
         **base.model_dump(),
-        body_md=article.body_md,
+        body_md=localize.read(article, "body_md", lang),
         comments=[
             CommentOut(
                 id=comment.id or 0,
@@ -230,6 +235,7 @@ def toggle_like(
     slug: str,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> ArticleOut:
     article = session.exec(select(Article).where(Article.slug == slug)).first()
     if not article:
@@ -246,4 +252,4 @@ def toggle_like(
         session.add(ArticleLike(article_id=article.id or 0, user_id=user.id or 0))
     session.commit()
 
-    return _to_out(session, article, user.id or 0, _saved_slugs(session, user.id or 0))
+    return _to_out(session, article, user.id or 0, _saved_slugs(session, user.id or 0), lang)

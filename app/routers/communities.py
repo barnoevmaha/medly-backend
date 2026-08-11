@@ -10,11 +10,12 @@ from pydantic import BaseModel, Field as PydanticField
 from sqlmodel import Session, func, or_, select
 
 from app.db import get_session
+from app.lang import get_lang
 from app.models.community import Community, CommunityMember, CommunityMessage
 from app.models.enums import Role
 from app.models.user import User
 from app.security import get_current_user
-from app.services import gamification
+from app.services import gamification, localize
 
 router = APIRouter(prefix="/api/communities", tags=["communities"])
 
@@ -93,12 +94,12 @@ def _message_count(session: Session, community_id: int) -> int:
     )
 
 
-def _to_out(session: Session, community: Community, user: User, joined_ids: set) -> CommunityOut:
+def _to_out(session: Session, community: Community, user: User, joined_ids: set, lang: str) -> CommunityOut:
     return CommunityOut(
         id=community.id or 0,
         slug=community.slug,
-        name=community.name,
-        description=community.description,
+        name=localize.read(community, "name", lang),
+        description=localize.read(community, "description", lang),
         specialty=community.specialty,
         icon=community.icon,
         cover=community.cover,
@@ -140,6 +141,7 @@ def list_communities(
     filter: Optional[str] = None,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> List[CommunityOut]:
     """Search is scoped to the name and the line under it — nothing else.
 
@@ -159,7 +161,8 @@ def list_communities(
     communities = session.exec(statement.order_by(Community.name)).all()
     joined = _joined_ids(session, user.id or 0)
 
-    out = [_to_out(session, community, user, joined) for community in communities]
+    localize.ensure_fields(session, localize.fields_for(communities, ("name", "description")), lang)
+    out = [_to_out(session, community, user, joined, lang) for community in communities]
     if filter == "My Communities":
         out = [item for item in out if item.joined]
     elif filter == "Popular":
@@ -173,6 +176,7 @@ def list_communities(
 def my_communities(
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> List[CommunityOut]:
     joined = _joined_ids(session, user.id or 0)
     if not joined:
@@ -180,7 +184,8 @@ def my_communities(
     communities = session.exec(
         select(Community).where(Community.id.in_(joined))  # type: ignore[union-attr]
     ).all()
-    return [_to_out(session, community, user, joined) for community in communities]
+    localize.ensure_fields(session, localize.fields_for(communities, ("name", "description")), lang)
+    return [_to_out(session, community, user, joined, lang) for community in communities]
 
 
 @router.post("", response_model=CommunityOut, status_code=status.HTTP_201_CREATED)
@@ -188,6 +193,7 @@ def create_community(
     payload: CommunityIn,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> CommunityOut:
     """Premium-only, enforced here.
 
@@ -223,7 +229,7 @@ def create_community(
     session.commit()
     gamification.sync_badges(session, user)
 
-    return _to_out(session, community, user, _joined_ids(session, user.id or 0))
+    return _to_out(session, community, user, _joined_ids(session, user.id or 0), lang)
 
 
 def _get(session: Session, slug: str) -> Community:
@@ -238,10 +244,12 @@ def get_community(
     slug: str,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> CommunityDetailOut:
     community = _get(session, slug)
     joined = _joined_ids(session, user.id or 0)
-    base = _to_out(session, community, user, joined)
+    localize.ensure_fields(session, [(community, "name"), (community, "description")], lang)
+    base = _to_out(session, community, user, joined, lang)
 
     rows = session.exec(
         select(User)
@@ -262,6 +270,7 @@ def join(
     slug: str,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> CommunityOut:
     community = _get(session, slug)
     existing = session.exec(
@@ -274,7 +283,7 @@ def join(
         session.add(CommunityMember(community_id=community.id or 0, user_id=user.id or 0))
         session.commit()
         gamification.sync_badges(session, user)
-    return _to_out(session, community, user, _joined_ids(session, user.id or 0))
+    return _to_out(session, community, user, _joined_ids(session, user.id or 0), lang)
 
 
 @router.post("/{slug}/leave", response_model=CommunityOut)
@@ -282,6 +291,7 @@ def leave(
     slug: str,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> CommunityOut:
     community = _get(session, slug)
     existing = session.exec(
@@ -293,7 +303,7 @@ def leave(
     if existing:
         session.delete(existing)
         session.commit()
-    return _to_out(session, community, user, _joined_ids(session, user.id or 0))
+    return _to_out(session, community, user, _joined_ids(session, user.id or 0), lang)
 
 
 @router.get("/{slug}/messages", response_model=List[MessageOut])

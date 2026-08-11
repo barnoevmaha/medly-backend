@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, func, select
 
 from app.db import get_session
+from app.lang import get_lang
 from app.models.badge import UserBadge
 from app.models.challenge import (
     Challenge,
@@ -27,7 +28,7 @@ from app.models.challenge import (
 )
 from app.models.user import User
 from app.security import get_current_user
-from app.services import gamification
+from app.services import gamification, localize
 
 router = APIRouter(prefix="/api/challenges", tags=["challenges"])
 
@@ -142,7 +143,7 @@ def _participants(session: Session, challenge: Challenge) -> int:
     return challenge.base_participants + real
 
 
-def _summary(session: Session, challenge: Challenge, user: User) -> ChallengeOut:
+def _summary(session: Session, challenge: Challenge, user: User, lang: str) -> ChallengeOut:
     questions = _questions(session, challenge.id or 0)
     answers = _my_answers(session, user.id or 0, challenge.id or 0)
     joined = session.exec(
@@ -155,9 +156,9 @@ def _summary(session: Session, challenge: Challenge, user: User) -> ChallengeOut
     return ChallengeOut(
         id=challenge.id or 0,
         slug=challenge.slug,
-        title=challenge.title,
-        description=challenge.description,
-        topic=challenge.topic,
+        title=localize.read(challenge, "title", lang),
+        description=localize.read(challenge, "description", lang),
+        topic=localize.read(challenge, "topic", lang),
         icon=challenge.icon,
         cover=challenge.cover,
         difficulty=challenge.difficulty,
@@ -185,11 +186,13 @@ def _get(session: Session, slug: str) -> Challenge:
 def list_challenges(
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> List[ChallengeOut]:
     challenges = session.exec(
         select(Challenge).where(Challenge.published == True).order_by(Challenge.order)  # noqa: E712
     ).all()
-    return [_summary(session, challenge, user) for challenge in challenges]
+    localize.ensure_fields(session, localize.fields_for(challenges, ("title", "description", "topic")), lang)
+    return [_summary(session, challenge, user, lang) for challenge in challenges]
 
 
 @router.get("/{slug}", response_model=ChallengeDetailOut)
@@ -197,29 +200,46 @@ def get_challenge(
     slug: str,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> ChallengeDetailOut:
     challenge = _get(session, slug)
-    base = _summary(session, challenge, user)
+    localize.ensure_fields(session, [(challenge, "title"), (challenge, "description"), (challenge, "topic")], lang)
+    base = _summary(session, challenge, user, lang)
     questions = _questions(session, challenge.id or 0)
     answers = _my_answers(session, user.id or 0, challenge.id or 0)
 
+    # Every question and choice on this challenge, translated together in one
+    # batch — a cold cache on a five-question challenge is ~30 short strings,
+    # done in parallel rather than one request per field.
+    all_choices: dict[int, List[ChallengeChoice]] = {}
+    for question in questions:
+        all_choices[question.id or 0] = list(
+            session.exec(
+                select(ChallengeChoice)
+                .where(ChallengeChoice.question_id == question.id)
+                .order_by(ChallengeChoice.order)
+            ).all()
+        )
+    refs = localize.fields_for(questions, ("prompt", "explanation"))
+    for choices in all_choices.values():
+        refs += localize.fields_for(choices, ("text",))
+    localize.ensure_fields(session, refs, lang)
+
     out: List[QuestionOut] = []
     for question in questions:
-        choices = session.exec(
-            select(ChallengeChoice)
-            .where(ChallengeChoice.question_id == question.id)
-            .order_by(ChallengeChoice.order)
-        ).all()
+        choices = all_choices[question.id or 0]
         answer = answers.get(question.id or 0)
         correct_choice = next((c for c in choices if c.is_correct), None)
         out.append(
             QuestionOut(
                 id=question.id or 0,
                 order=question.order,
-                prompt=question.prompt,
+                prompt=localize.read(question, "prompt", lang),
                 points=question.points,
                 kind=question.kind,
-                choices=[ChoiceOut(id=c.id or 0, text=c.text) for c in choices],
+                choices=[
+                    ChoiceOut(id=c.id or 0, text=localize.read(c, "text", lang)) for c in choices
+                ],
                 image_seed=question.image_seed,
                 image_url=question.image_url,
                 image_alt=question.image_alt,
@@ -232,7 +252,7 @@ def get_challenge(
                 # The correct answer is only ever sent after the question has
                 # been answered — otherwise the response is the answer key.
                 correct_choice_id=(correct_choice.id if answer and correct_choice else None),
-                explanation=question.explanation if answer else None,
+                explanation=localize.read(question, "explanation", lang) if answer else None,
             )
         )
 
@@ -244,6 +264,7 @@ def join(
     slug: str,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> ChallengeDetailOut:
     challenge = _get(session, slug)
     existing = session.exec(
@@ -257,7 +278,7 @@ def join(
             ChallengeParticipant(challenge_id=challenge.id or 0, user_id=user.id or 0)
         )
         session.commit()
-    return get_challenge(slug, session=session, user=user)
+    return get_challenge(slug, session=session, user=user, lang=lang)
 
 
 @router.post("/{slug}/answer", response_model=AnswerOut)
@@ -266,6 +287,7 @@ def answer(
     payload: AnswerIn,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> AnswerOut:
     challenge = _get(session, slug)
     question = session.get(ChallengeQuestion, payload.question_id)
@@ -382,11 +404,12 @@ def answer(
         if key not in before and key in gamification.BADGE_BY_KEY
     ]
 
+    localize.ensure_fields(session, [(question, "explanation")], lang)
     return AnswerOut(
         question_id=question.id or 0,
         correct=correct,
         correct_choice_id=correct_choice.id if correct_choice else 0,
-        explanation=question.explanation,
+        explanation=localize.read(question, "explanation", lang),
         points_awarded=awarded,
         already_answered=already,
         earned_points=sum(row.points_awarded for row in answers.values()),

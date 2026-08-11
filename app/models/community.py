@@ -16,6 +16,14 @@ class Community(SQLModel, table=True):
     # The line under the title on the card. Community search matches this and
     # the name only — never messages or member names.
     description: str = Field(default="")
+    # Machine-translated on first read in that language and cached here from
+    # then on — see app/services/translate.py and app/services/localize.py.
+    # Works the same way for a community a student created five minutes ago
+    # as for the seeded ones; nothing here is hand-written.
+    name_ru: str = Field(default="")
+    name_uz: str = Field(default="")
+    description_ru: str = Field(default="")
+    description_uz: str = Field(default="")
     specialty: str = Field(default="General", index=True)
     icon: str = Field(default="stethoscope")
     cover: str = Field(default="")
