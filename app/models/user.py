@@ -26,5 +26,13 @@ class User(SQLModel, table=True):
     certified_at: Optional[datetime] = None
     competency_score: int = Field(default=0)
 
+    # Gamification. Points are the single source of truth for rank — nothing in
+    # the product is allowed to display a hardcoded score.
+    points: int = Field(default=0, index=True)
+    streak_days: int = Field(default=0)
+
+    # Premium unlocks community creation. Enforced in the router, not the UI.
+    is_premium: bool = Field(default=False, index=True)
+
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)

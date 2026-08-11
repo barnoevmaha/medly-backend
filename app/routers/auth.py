@@ -43,6 +43,8 @@ class UserResponse(BaseModel):
     year_of_study: Optional[int] = None
     certified: bool
     competency_score: int
+    points: int = 0
+    is_premium: bool = False
 
 
 def _to_response(user: User) -> UserResponse:
@@ -55,6 +57,8 @@ def _to_response(user: User) -> UserResponse:
         year_of_study=user.year_of_study,
         certified=user.certified,
         competency_score=user.competency_score,
+        points=user.points or 0,
+        is_premium=bool(user.is_premium),
     )
 
 

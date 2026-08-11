@@ -9,6 +9,7 @@ from typing import List
 
 from sqlmodel import Session, select
 
+from app import seed_content
 from app.db import engine, init_db
 from app.models.audit import AuditEvent
 from app.models.course import Course, Enrollment, Lesson, LessonProgress
@@ -144,6 +145,42 @@ COURSES = [
         "is_certification": True,
         "lessons": [
             {
+                "title": "Introduction to AI safety in healthcare",
+                "kind": LessonKind.READING,
+                "duration_minutes": 10,
+                "key_point": "Safety is not a property of the model. It is a property of the "
+                             "system the model sits inside — including you.",
+                "body_md": (
+                    "## Why a certification, and why before you touch the tool\n\n"
+                    "Medical AI does not fail the way a drug fails. A drug with a safety "
+                    "problem tends to produce a signal that looks like a safety problem. A "
+                    "model with a safety problem produces confident, plausible output that "
+                    "looks exactly like its correct output. The failure mode is silent, and it "
+                    "is absorbed by whoever is holding the decision — which is you.\n\n"
+                    "That is the reason this module gates the AI-assisted workbench rather "
+                    "than sitting alongside it as optional reading.\n\n"
+                    "## Four questions this course answers\n\n"
+                    "1. **Where does the error come from?** Not from the model alone: from the "
+                    "interaction between the model, the data it was trained on, the workflow "
+                    "it is dropped into, and the human reading its output.\n"
+                    "2. **Who is accountable?** Always a named clinician. No regulator, "
+                    "insurer or court has ever accepted \"the algorithm said so\".\n"
+                    "3. **What has to be recorded?** Enough that someone reconstructing the "
+                    "decision six months later can see what the model said, what you did, and "
+                    "whether you disagreed.\n"
+                    "4. **When do you stop?** Every model has an operating envelope. Knowing "
+                    "its edge is more useful than knowing its accuracy.\n\n"
+                    "## The shape of the rest of this course\n\n"
+                    "Automation bias, then fairness across populations, then privacy, then "
+                    "calibration and uncertainty, then transparency, then the ethical and "
+                    "regulatory frame. Each lesson ends where the next begins.\n\n"
+                    "> Nothing here is about distrusting AI. Reflexive distrust is as "
+                    "unhelpful as reflexive trust, and it costs patients the benefit. The "
+                    "goal is calibrated use: knowing precisely how much weight a given output "
+                    "can carry."
+                ),
+            },
+            {
                 "title": "Automation bias, and the order you look in",
                 "kind": LessonKind.READING,
                 "duration_minutes": 14,
@@ -170,6 +207,85 @@ COURSES = [
                 ),
             },
             {
+                "title": "Bias and fairness across patient populations",
+                "kind": LessonKind.READING,
+                "duration_minutes": 13,
+                "key_point": "A model is only as representative as its training set. Aggregate "
+                             "accuracy hides the subgroup where it fails.",
+                "body_md": (
+                    "## Where the bias enters\n\n"
+                    "Not from malice, and rarely from the algorithm. It enters through the "
+                    "data:\n\n"
+                    "- **Sampling.** Chest radiograph datasets are dominated by a handful of "
+                    "large academic centres in a small number of countries. Skin lesion "
+                    "datasets are overwhelmingly light-skinned.\n"
+                    "- **Label bias.** If the ground truth is \"what the reporting radiologist "
+                    "wrote\", the model learns that radiologist's blind spots as if they were "
+                    "the disease.\n"
+                    "- **Proxy variables.** A famous US care-management algorithm used prior "
+                    "healthcare *spend* as a proxy for healthcare *need*. Because less money "
+                    "had historically been spent on Black patients at equal illness, the model "
+                    "systematically underrated their need. The algorithm never saw race. It "
+                    "did not have to.\n\n"
+                    "## Aggregate accuracy is not a safety claim\n\n"
+                    "A model reported at 94% can be 96% in the majority group and 71% in a "
+                    "subgroup that makes up 6% of the test set. The headline number is "
+                    "arithmetically true and clinically useless. Always ask for performance "
+                    "*stratified* by age, sex, ethnicity, scanner, and site.\n\n"
+                    "## What you can do at the point of use\n\n"
+                    "1. Ask which population the model was validated on, and whether your "
+                    "patient resembles it.\n"
+                    "2. Treat an out-of-distribution patient as a reason to weight the model "
+                    "lower, not as a reason to discard your own read.\n"
+                    "3. Report the misses. A subgroup failure is invisible until somebody "
+                    "writes it down.\n\n"
+                    "> Fairness is not a checkbox at procurement. It is a monitoring "
+                    "commitment that continues for as long as the tool is deployed."
+                ),
+            },
+            {
+                "title": "Patient privacy and de-identification",
+                "kind": LessonKind.READING,
+                "duration_minutes": 12,
+                "key_point": "Removing the name is the easy half. Images identify people "
+                             "through pixels, headers and rarity.",
+                "body_md": (
+                    "## Three places identity hides in a scan\n\n"
+                    "1. **DICOM headers.** `PatientName`, `PatientID`, `PatientBirthDate`, "
+                    "`AccessionNumber`, `InstitutionName`, plus private vendor tags that vary "
+                    "by scanner and are frequently missed by naive scripts.\n"
+                    "2. **Burned-in pixel text.** Ultrasound and portable radiographs often "
+                    "carry the name and MRN rendered into the image itself. Header scrubbing "
+                    "does nothing to this.\n"
+                    "3. **The anatomy.** A head CT can be volume-rendered back into a "
+                    "recognisable face. Unusual implants, surgical hardware and rare anatomy "
+                    "are identifying on their own.\n\n"
+                    "## De-identified is not anonymous\n\n"
+                    "Removing direct identifiers reduces risk; it does not eliminate "
+                    "re-identification. Linking a small number of quasi-identifiers — postcode, "
+                    "date of birth, sex, rare diagnosis — has repeatedly been shown to be enough "
+                    "to name individuals. Treat de-identified imaging as *lower risk*, never as "
+                    "*no risk*.\n\n"
+                    "## Automated redaction, and why it is never the last step\n\n"
+                    "Automatic tools are good at removing what they can name and bad at knowing "
+                    "what they missed. A pattern matcher that finds nothing is indistinguishable "
+                    "from one pointed at the wrong field. This is the same trap as automation "
+                    "bias, applied to privacy.\n\n"
+                    "In this platform, teacher-authored case references follow a fixed route:\n\n"
+                    "```\n"
+                    "Teacher -> Case reference -> Scan -> Automatic redaction -> Human "
+                    "verification -> Student\n"
+                    "```\n\n"
+                    "The automatic pass produces a **proposal**, marked `auto_redacted`. Only a "
+                    "teacher can move an image to `verified`, and no student can load an image "
+                    "in any other state. The gate is in the API, not the interface.\n\n"
+                    "## Minimum necessary\n\n"
+                    "Teaching needs an age band, a sex, a clinical question and an image. It "
+                    "does not need a date of birth, a postcode or an admission date. Every field "
+                    "you carry is a field you have to defend."
+                ),
+            },
+            {
                 "title": "Confidence, calibration, and knowing when to stop",
                 "kind": LessonKind.READING,
                 "duration_minutes": 12,
@@ -188,6 +304,41 @@ COURSES = [
                     "When a vendor shows you a confidence score: calibrated against what, "
                     "measured on which population, and how recently? An uncalibrated number tells "
                     "you about the model's enthusiasm, not about the patient."
+                ),
+            },
+            {
+                "title": "Transparency and explainability you can defend",
+                "kind": LessonKind.READING,
+                "duration_minutes": 11,
+                "key_point": "An explanation you cannot check is decoration. Ask what would "
+                             "have changed the answer.",
+                "body_md": (
+                    "## Two different things called explainability\n\n"
+                    "**Interpretable by construction** — a model whose decision rule can be "
+                    "read directly, like a small decision tree or a scoring system. Rare in "
+                    "imaging, common and underrated in risk prediction.\n\n"
+                    "**Post-hoc explanation** — a second method that attempts to describe what "
+                    "an opaque model did. Saliency maps, Grad-CAM, SHAP. These are estimates "
+                    "*about* the model, and they carry their own error.\n\n"
+                    "## The honest reading of a heatmap\n\n"
+                    "A saliency map says which pixels, when perturbed, most change the output. "
+                    "It does not say the model \"looked at\" the lesion, and it does not "
+                    "confirm the prediction. Published work has shown saliency maps that are "
+                    "nearly unchanged when the model's own weights are randomised — an "
+                    "explanation that survives destroying the thing it claims to explain is "
+                    "explaining nothing.\n\n"
+                    "## Questions that actually discriminate\n\n"
+                    "- What is the model's intended use, in one sentence?\n"
+                    "- What input would make it abstain? If the answer is \"nothing\", it has "
+                    "no notion of its own limits.\n"
+                    "- Which features or regions would have flipped this output?\n"
+                    "- Where can I see its performance on patients like this one?\n\n"
+                    "## Transparency owed to the patient\n\n"
+                    "Separate from technical explainability: the patient is entitled to know "
+                    "that an AI system contributed to their care, in language they can act on. "
+                    "In this platform every AI output carries a disclaimer that cannot be "
+                    "switched off, and every interaction is written to the audit log — "
+                    "transparency as a system property, not a preference."
                 ),
             },
             {
@@ -457,39 +608,54 @@ FOUNDATIONS_QUESTIONS = [
 
 
 def _seed_courses(session: Session) -> None:
+    """Create courses, and reconcile their lessons on every run.
+
+    Reconciling rather than skipping matters for an already-deployed database:
+    a course added lessons after launch, and a `continue` on the existing row
+    would leave that install permanently on the old four-lesson version.
+    Lessons are matched by title, so re-running never duplicates one.
+    """
     for spec in COURSES:
-        existing = session.exec(select(Course).where(Course.slug == spec["slug"])).first()
-        if existing:
-            continue
-        course = Course(
-            slug=str(spec["slug"]),
-            title=str(spec["title"]),
-            summary=str(spec["summary"]),
-            track=str(spec["track"]),
-            level=str(spec["level"]),
-            emoji=str(spec["emoji"]),
-            duration_minutes=int(spec["duration_minutes"]),
-            order=int(spec["order"]),
-            is_certification=bool(spec.get("is_certification", False)),
-        )
-        session.add(course)
-        session.commit()
-        session.refresh(course)
+        course = session.exec(select(Course).where(Course.slug == spec["slug"])).first()
+        if not course:
+            course = Course(
+                slug=str(spec["slug"]),
+                title=str(spec["title"]),
+                summary=str(spec["summary"]),
+                track=str(spec["track"]),
+                level=str(spec["level"]),
+                emoji=str(spec["emoji"]),
+                duration_minutes=int(spec["duration_minutes"]),
+                order=int(spec["order"]),
+                is_certification=bool(spec.get("is_certification", False)),
+            )
+            session.add(course)
+            session.commit()
+            session.refresh(course)
 
         lessons = spec["lessons"]
         assert isinstance(lessons, list)
+        existing = {
+            lesson.title: lesson
+            for lesson in session.exec(
+                select(Lesson).where(Lesson.course_id == course.id)
+            ).all()
+        }
         for index, lesson_spec in enumerate(lessons):
-            session.add(
-                Lesson(
-                    course_id=course.id or 0,
-                    order=index,
-                    title=str(lesson_spec["title"]),
-                    kind=lesson_spec["kind"],
-                    duration_minutes=int(lesson_spec["duration_minutes"]),
-                    key_point=str(lesson_spec.get("key_point") or "") or None,
-                    body_md=str(lesson_spec["body_md"]),
-                )
-            )
+            title = str(lesson_spec["title"])
+            lesson = existing.get(title)
+            if lesson is None:
+                lesson = Lesson(course_id=course.id or 0, title=title)
+            lesson.order = index
+            lesson.kind = lesson_spec["kind"]
+            lesson.duration_minutes = int(lesson_spec["duration_minutes"])
+            lesson.key_point = str(lesson_spec.get("key_point") or "") or None
+            lesson.body_md = str(lesson_spec["body_md"])
+            session.add(lesson)
+
+        # Keep the advertised duration honest once lessons change.
+        course.duration_minutes = sum(int(item["duration_minutes"]) for item in lessons)
+        session.add(course)
         session.commit()
 
 
@@ -539,16 +705,25 @@ def _seed_quiz(
 
 
 def _seed_users(session: Session) -> List[User]:
+    # The premium flag is deliberately split across the two student accounts so
+    # both sides of the paywall can be demonstrated without editing the database.
     people = [
-        ("student@medly.dev", "Alex Johnson", Role.STUDENT, "Columbia University", 3, False),
-        ("certified@medly.dev", "Priya Nair", Role.STUDENT, "Columbia University", 4, True),
-        ("instructor@medly.dev", "Dr. Sarah Chen", Role.INSTRUCTOR, "Columbia University", None, True),
-        ("admin@medly.dev", "Medly Admin", Role.ADMIN, "Medly", None, True),
+        ("student@medly.dev", "Alex Johnson", Role.STUDENT, "Columbia University", 3, False, False),
+        ("certified@medly.dev", "Priya Nair", Role.STUDENT, "Columbia University", 4, True, True),
+        ("instructor@medly.dev", "Dr. Sarah Chen", Role.INSTRUCTOR, "Columbia University", None, True, True),
+        ("admin@medly.dev", "Medly Admin", Role.ADMIN, "Medly", None, True, True),
     ]
     created: List[User] = []
-    for email, name, role, institution, year, certified in people:
+    for email, name, role, institution, year, certified, premium in people:
         existing = session.exec(select(User).where(User.email == email)).first()
         if existing:
+            # A database created before the premium flag existed has every demo
+            # account on the default. Reconcile so the paywall demo still works
+            # after an upgrade in place, without touching anything else.
+            if existing.is_premium != premium:
+                existing.is_premium = premium
+                session.add(existing)
+                session.commit()
             created.append(existing)
             continue
         user = User(
@@ -561,6 +736,7 @@ def _seed_users(session: Session) -> List[User]:
             certified=certified,
             certified_at=datetime.utcnow() if certified else None,
             competency_score=90 if certified else 0,
+            is_premium=premium,
         )
         session.add(user)
         created.append(user)
@@ -644,6 +820,35 @@ def _seed_progress(session: Session, users: List[User]) -> None:
         session.commit()
 
 
+def _seed_memberships(session: Session, users: List[User]) -> None:
+    """Put the demo students in a few communities so Profile → Communities has rows."""
+    from app.models.community import Community, CommunityMember
+
+    wanted = {
+        "student@medly.dev": ["cardiology-club", "emergency-medicine"],
+        "certified@medly.dev": ["radiology-residents", "ai-in-medicine", "internal-medicine"],
+        "instructor@medly.dev": ["radiology-residents", "ai-in-medicine"],
+    }
+    for user in users:
+        for slug in wanted.get(user.email, []):
+            community = session.exec(
+                select(Community).where(Community.slug == slug)
+            ).first()
+            if not community:
+                continue
+            existing = session.exec(
+                select(CommunityMember).where(
+                    CommunityMember.community_id == community.id,
+                    CommunityMember.user_id == user.id,
+                )
+            ).first()
+            if not existing:
+                session.add(
+                    CommunityMember(community_id=community.id or 0, user_id=user.id or 0)
+                )
+    session.commit()
+
+
 def run() -> None:
     init_db()
     with Session(engine) as session:
@@ -669,6 +874,10 @@ def run() -> None:
         users = _seed_users(session)
         _seed_progress(session, users)
         _seed_demo_activity(session, users)
+
+        # Product content: feed, library, communities, challenges, casebook.
+        seed_content.run(session, users, hash_password(DEMO_PASSWORD))
+        _seed_memberships(session, users)
 
     print("Seed complete.")
     print(f"  student@medly.dev    / {DEMO_PASSWORD}   (not certified — AI locked)")

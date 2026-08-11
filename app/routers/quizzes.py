@@ -17,6 +17,7 @@ from app.models.quiz import Choice, Question, Quiz, QuizAttempt
 from app.models.user import User
 from app.security import get_current_user
 from app.services.audit import log_event
+from app.services.gamification import sync_badges
 from app.services.scoring import competency_band, grade
 
 router = APIRouter(prefix="/api/quizzes", tags=["quizzes"])
@@ -76,6 +77,8 @@ class SubmitResponse(BaseModel):
     band: str
     certified: bool
     certification_unlocked: bool
+    points_awarded: int = 0
+    total_points: int = 0
     results: List[QuestionResult]
 
 
@@ -207,10 +210,26 @@ def submit(
         user.certified = True
         user.certified_at = datetime.utcnow()
 
+    # Points for a pass, once per quiz. `previously_passed` is checked before
+    # this attempt is committed, so resitting a quiz cannot be farmed.
+    previously_passed = session.exec(
+        select(QuizAttempt).where(
+            QuizAttempt.user_id == user.id,
+            QuizAttempt.quiz_id == quiz_id,
+            QuizAttempt.passed == True,  # noqa: E712
+        )
+    ).first()
+    quiz_points = 0
+    if passed and not previously_passed:
+        quiz_points = 250 if quiz.is_certification else 100
+        user.points = (user.points or 0) + quiz_points
+
     user.competency_score = max(user.competency_score, score)
     session.add(user)
     session.commit()
     session.refresh(attempt)
+    session.refresh(user)
+    sync_badges(session, user)
 
     log_event(
         session,
@@ -240,5 +259,7 @@ def submit(
         band=competency_band(score),
         certified=user.certified,
         certification_unlocked=newly_certified,
+        points_awarded=quiz_points,
+        total_points=user.points or 0,
         results=[QuestionResult(**r) for r in outcome["results"]],
     )

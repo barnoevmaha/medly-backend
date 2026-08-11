@@ -1,0 +1,240 @@
+"""The feed: articles, their full bodies, comments and likes."""
+from __future__ import annotations
+
+from datetime import datetime
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field as PydanticField
+from sqlmodel import Session, func, or_, select
+
+from app.db import get_session
+from app.models.social import Article, ArticleComment, ArticleLike, SavedItem
+from app.models.user import User
+from app.security import get_current_user
+from app.services import gamification
+
+router = APIRouter(prefix="/api/feed", tags=["feed"])
+
+
+class CommentOut(BaseModel):
+    id: int
+    author: str
+    author_role: str
+    body: str
+    created_at: datetime
+    mine: bool
+
+
+class ArticleOut(BaseModel):
+    id: int
+    slug: str
+    tag: str
+    title: str
+    excerpt: str
+    author: str
+    author_role: str
+    read_minutes: int
+    published_at: datetime
+    like_count: int
+    comment_count: int
+    liked: bool
+    saved: bool
+
+
+class ArticleDetailOut(ArticleOut):
+    body_md: str
+    comments: List[CommentOut]
+
+
+class CommentIn(BaseModel):
+    body: str = PydanticField(min_length=1, max_length=2000)
+
+
+def _counts(session: Session, article_id: int, user_id: int) -> dict:
+    likes = int(
+        session.exec(
+            select(func.count()).select_from(ArticleLike).where(
+                ArticleLike.article_id == article_id
+            )
+        ).one()
+    )
+    comments = int(
+        session.exec(
+            select(func.count()).select_from(ArticleComment).where(
+                ArticleComment.article_id == article_id
+            )
+        ).one()
+    )
+    liked = session.exec(
+        select(ArticleLike).where(
+            ArticleLike.article_id == article_id, ArticleLike.user_id == user_id
+        )
+    ).first()
+    return {"likes": likes, "comments": comments, "liked": liked is not None}
+
+
+def _saved_slugs(session: Session, user_id: int) -> set:
+    rows = session.exec(
+        select(SavedItem).where(
+            SavedItem.user_id == user_id, SavedItem.item_type == "article"
+        )
+    ).all()
+    return {row.item_key for row in rows}
+
+
+def _to_out(session: Session, article: Article, user_id: int, saved: set) -> ArticleOut:
+    counts = _counts(session, article.id or 0, user_id)
+    return ArticleOut(
+        id=article.id or 0,
+        slug=article.slug,
+        tag=article.tag,
+        title=article.title,
+        excerpt=article.excerpt,
+        author=article.author,
+        author_role=article.author_role,
+        read_minutes=article.read_minutes,
+        published_at=article.published_at,
+        like_count=article.base_likes + counts["likes"],
+        comment_count=counts["comments"],
+        liked=counts["liked"],
+        saved=article.slug in saved,
+    )
+
+
+@router.get("/articles", response_model=List[ArticleOut])
+def list_articles(
+    q: Optional[str] = Query(default=None, description="Free text — searches the body too"),
+    tag: Optional[str] = None,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> List[ArticleOut]:
+    """List the feed.
+
+    `q` deliberately matches the article *body* as well as the title. Searching
+    "radiologists" has to find an article that only says the word halfway down,
+    which a title-only filter would miss.
+    """
+    statement = select(Article)
+    if tag and tag != "All":
+        statement = statement.where(Article.tag == tag)
+    if q and q.strip():
+        needle = f"%{q.strip().lower()}%"
+        statement = statement.where(
+            or_(
+                func.lower(Article.title).like(needle),
+                func.lower(Article.excerpt).like(needle),
+                func.lower(Article.body_md).like(needle),
+                func.lower(Article.author).like(needle),
+                func.lower(Article.tag).like(needle),
+            )
+        )
+    articles = session.exec(statement.order_by(Article.published_at.desc())).all()  # type: ignore[union-attr]
+    saved = _saved_slugs(session, user.id or 0)
+    return [_to_out(session, article, user.id or 0, saved) for article in articles]
+
+
+@router.get("/articles/{slug}", response_model=ArticleDetailOut)
+def get_article(
+    slug: str,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> ArticleDetailOut:
+    article = session.exec(select(Article).where(Article.slug == slug)).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    saved = _saved_slugs(session, user.id or 0)
+    base = _to_out(session, article, user.id or 0, saved)
+
+    rows = session.exec(
+        select(ArticleComment, User)
+        .where(ArticleComment.article_id == article.id)
+        .where(User.id == ArticleComment.user_id)
+        .order_by(ArticleComment.created_at.asc())  # type: ignore[union-attr]
+    ).all()
+
+    return ArticleDetailOut(
+        **base.model_dump(),
+        body_md=article.body_md,
+        comments=[
+            CommentOut(
+                id=comment.id or 0,
+                author=author.full_name,
+                author_role=author.role.value,
+                body=comment.body,
+                created_at=comment.created_at,
+                mine=author.id == user.id,
+            )
+            for comment, author in rows
+        ],
+    )
+
+
+@router.post("/articles/{slug}/comments", response_model=CommentOut, status_code=201)
+def add_comment(
+    slug: str,
+    payload: CommentIn,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> CommentOut:
+    article = session.exec(select(Article).where(Article.slug == slug)).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+    body = payload.body.strip()
+    if not body:
+        raise HTTPException(status_code=422, detail="A comment cannot be empty")
+
+    comment = ArticleComment(article_id=article.id or 0, user_id=user.id or 0, body=body)
+    session.add(comment)
+    session.commit()
+    session.refresh(comment)
+    gamification.sync_badges(session, user)
+
+    return CommentOut(
+        id=comment.id or 0,
+        author=user.full_name,
+        author_role=user.role.value,
+        body=comment.body,
+        created_at=comment.created_at,
+        mine=True,
+    )
+
+
+@router.delete("/comments/{comment_id}", status_code=204)
+def delete_comment(
+    comment_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> None:
+    comment = session.get(ArticleComment, comment_id)
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if comment.user_id != user.id and user.role.value not in {"instructor", "admin"}:
+        raise HTTPException(status_code=403, detail="That is not your comment")
+    session.delete(comment)
+    session.commit()
+
+
+@router.post("/articles/{slug}/like", response_model=ArticleOut)
+def toggle_like(
+    slug: str,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> ArticleOut:
+    article = session.exec(select(Article).where(Article.slug == slug)).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    existing = session.exec(
+        select(ArticleLike).where(
+            ArticleLike.article_id == article.id, ArticleLike.user_id == user.id
+        )
+    ).first()
+    if existing:
+        session.delete(existing)
+    else:
+        session.add(ArticleLike(article_id=article.id or 0, user_id=user.id or 0))
+    session.commit()
+
+    return _to_out(session, article, user.id or 0, _saved_slugs(session, user.id or 0))

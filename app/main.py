@@ -8,7 +8,20 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db import init_db
-from app.routers import analysis, assistant, auth, courses, governance, quizzes
+from app.routers import (
+    analysis,
+    assistant,
+    auth,
+    casebook,
+    challenges,
+    communities,
+    courses,
+    feed,
+    governance,
+    profile,
+    quizzes,
+    saved,
+)
 
 
 @asynccontextmanager
@@ -51,6 +64,12 @@ app.include_router(quizzes.router)
 app.include_router(assistant.router)
 app.include_router(analysis.router)
 app.include_router(governance.router)
+app.include_router(feed.router)
+app.include_router(saved.router)
+app.include_router(communities.router)
+app.include_router(challenges.router)
+app.include_router(casebook.router)
+app.include_router(profile.router)
 
 
 @app.get("/api/health", tags=["meta"])

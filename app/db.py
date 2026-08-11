@@ -57,11 +57,63 @@ else:
 engine = create_engine(DATABASE_URL, **_engine_args)
 
 
+def _literal(value: Any) -> str:
+    """Render a Python default as a SQL literal for an ALTER TABLE clause."""
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    if isinstance(value, (int, float)):
+        return str(value)
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+def migrate_columns() -> None:
+    """Add columns that exist on the models but not yet in the database.
+
+    `create_all` only ever creates missing *tables*. A column added to a model
+    that already has a table — `users.points`, say — is silently absent, and the
+    first query naming it fails at runtime. Doing this here means an existing
+    deployment picks up new columns on boot instead of needing the volume wiped.
+
+    New columns are added nullable and then backfilled, because SQLite refuses
+    to add a NOT NULL column to a table that already has rows.
+    """
+    import app.models  # noqa: F401  (registers every SQLModel table)
+
+    from sqlalchemy import inspect as sa_inspect
+    from sqlalchemy import text
+
+    inspector = sa_inspect(engine)
+    tables = set(inspector.get_table_names())
+
+    with engine.begin() as connection:
+        for table in SQLModel.metadata.sorted_tables:
+            if table.name not in tables:
+                continue
+            present = {column["name"] for column in inspector.get_columns(table.name)}
+            for column in table.columns:
+                if column.name in present:
+                    continue
+                type_sql = column.type.compile(engine.dialect)
+                default = getattr(column.default, "arg", None)
+                clause = f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {type_sql}'
+                if default is not None and not callable(default):
+                    clause += f" DEFAULT {_literal(default)}"
+                connection.execute(text(clause))
+                if default is not None and not callable(default):
+                    connection.execute(
+                        text(
+                            f'UPDATE "{table.name}" SET "{column.name}" = {_literal(default)} '
+                            f'WHERE "{column.name}" IS NULL'
+                        )
+                    )
+
+
 def init_db() -> None:
     """Import models for their side effects, then create tables."""
     import app.models  # noqa: F401  (registers every SQLModel table)
 
     SQLModel.metadata.create_all(engine)
+    migrate_columns()
 
 
 def get_session() -> Iterator[Session]:

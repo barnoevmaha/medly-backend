@@ -1,0 +1,86 @@
+"""Feed articles, engagement, library resources and the Saved collection."""
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Optional
+
+from sqlmodel import Field, SQLModel
+
+
+class Article(SQLModel, table=True):
+    """A feed item with a full body, not just the card copy.
+
+    `excerpt` is what the card shows; `body_md` is the article a reader opens.
+    Search runs over both plus the title — see routers/feed.py.
+    """
+
+    __tablename__ = "articles"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    slug: str = Field(index=True, unique=True)
+    tag: str = Field(default="Medical News", index=True)
+    title: str
+    excerpt: str = Field(default="")
+    body_md: str = Field(default="")
+    author: str = Field(default="Medly")
+    author_role: str = Field(default="")
+    read_minutes: int = Field(default=5)
+    # Baseline so a fresh install does not show every article on zero.
+    base_likes: int = Field(default=0)
+    published_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class ArticleComment(SQLModel, table=True):
+    __tablename__ = "article_comments"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    article_id: int = Field(foreign_key="articles.id", index=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    body: str
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class ArticleLike(SQLModel, table=True):
+    """One row per (user, article). The uniqueness is enforced in the router."""
+
+    __tablename__ = "article_likes"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    article_id: int = Field(foreign_key="articles.id", index=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Resource(SQLModel, table=True):
+    """Library material: books, PDFs and videos a student can save."""
+
+    __tablename__ = "resources"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    slug: str = Field(index=True, unique=True)
+    kind: str = Field(default="book", index=True)  # book | pdf | video
+    title: str
+    author: str = Field(default="")
+    description: str = Field(default="")
+    rating: float = Field(default=0.0)
+    downloads: str = Field(default="")
+    duration: str = Field(default="")
+    premium: bool = Field(default=False)
+    url: str = Field(default="")
+    cover_hue: int = Field(default=210)
+
+
+class SavedItem(SQLModel, table=True):
+    """The user's Saved collection — one table for every content type.
+
+    (user_id, item_type, item_key) is the natural key. The router checks it
+    before inserting, so saving twice is a no-op rather than a duplicate row.
+    """
+
+    __tablename__ = "saved_items"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    item_type: str = Field(index=True)  # article | book | pdf | video
+    item_key: str = Field(index=True)  # article slug or resource slug
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
