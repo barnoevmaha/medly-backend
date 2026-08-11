@@ -60,6 +60,23 @@ class Settings:
     )
     gemini_timeout_seconds: float = float(os.getenv("GEMINI_TIMEOUT_SECONDS", "45"))
 
+    # Gemini 3.x reasons before it answers. With thinking left at its default
+    # the model emits nothing for several seconds and then delivers the answer
+    # in a few large pieces — which is indistinguishable from "not streaming".
+    # A chat surface wants first-token latency, not depth, so this is turned
+    # down. Set to "high" for harder questions, or "" to send no preference.
+    gemini_thinking_level: str = os.getenv("GEMINI_THINKING_LEVEL", "low")
+
+    # Bytes of SSE comment padding sent before the first real frame. Proxies
+    # that buffer a response until some minimum is buffered will hold an SSE
+    # stream open but silent forever otherwise. Comments are ignored by every
+    # SSE client, so this is invisible. Set to 0 to disable.
+    sse_preamble_bytes: int = int(os.getenv("MEDLY_SSE_PREAMBLE_BYTES", "2048"))
+
+    # Timestamped per-stage stream logging, and the /debug-stream probe.
+    # Off unless explicitly enabled.
+    stream_debug: bool = os.getenv("MEDLY_STREAM_DEBUG", "false").lower() in {"1", "true", "yes"}
+
     # Cost and abuse ceilings. Every one of these is a real limit enforced in
     # code, not a suggestion — an unbounded context window on a paid API is a
     # billing incident waiting to happen.

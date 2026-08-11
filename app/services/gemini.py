@@ -158,13 +158,20 @@ def _build_request(
     ]
     contents.append({"role": "user", "parts": [{"text": message}]})
 
+    generation_config: dict = {
+        "temperature": temperature,
+        "maxOutputTokens": max_output_tokens or settings.ai_max_output_tokens,
+    }
+    if settings.gemini_thinking_level:
+        # Gemini 3 uses thinkingLevel (thinkingBudget is the 2.x spelling).
+        generation_config["thinkingConfig"] = {
+            "thinkingLevel": settings.gemini_thinking_level
+        }
+
     body = {
         "systemInstruction": {"parts": [{"text": system_prompt}]},
         "contents": contents,
-        "generationConfig": {
-            "temperature": temperature,
-            "maxOutputTokens": max_output_tokens or settings.ai_max_output_tokens,
-        },
+        "generationConfig": generation_config,
     }
     headers = {"x-goog-api-key": settings.gemini_api_key, "Content-Type": "application/json"}
     return body, headers
@@ -200,7 +207,21 @@ def generate_stream(
 
     started = time.monotonic()
     produced = 0
-    logger.info("gemini stream start model=%s turns=%d", model, len(body["contents"]))
+    fragments = 0
+
+    def mark(stage: str, extra: str = "") -> None:
+        """Millisecond-stamped stage marker, only when debugging is on."""
+        if settings.stream_debug:
+            logger.info(
+                "[GEMINI-STREAM] %s t=%.3fs %s",
+                stage, time.monotonic() - started, extra,
+            )
+
+    logger.info(
+        "gemini stream start model=%s turns=%d thinking=%s",
+        model, len(body["contents"]), settings.gemini_thinking_level or "default",
+    )
+    mark("request sent")
 
     with httpx.Client(timeout=settings.gemini_timeout_seconds) as client:
         with client.stream("POST", url, json=body, headers=headers) as response:
@@ -208,6 +229,7 @@ def generate_stream(
                 response.read()
                 _raise_for_status(response.status_code, response.text)
 
+            mark("upstream headers", f"status={response.status_code}")
             for line in response.iter_lines():
                 if not line or not line.startswith("data:"):
                     continue
@@ -238,11 +260,17 @@ def generate_stream(
                         text = part.get("text")
                         if text:
                             produced += len(text)
+                            fragments += 1
+                            mark(
+                                "received chunk",
+                                f"n={fragments} chars={len(text)} total={produced}",
+                            )
                             yield text
 
     latency_ms = int((time.monotonic() - started) * 1000)
     logger.info(
-        "gemini stream done model=%s latency_ms=%d chars=%d", model, latency_ms, produced
+        "gemini stream done model=%s latency_ms=%d chars=%d fragments=%d",
+        model, latency_ms, produced, fragments,
     )
     if not produced:
         raise GeminiBadResponse("gemini stream produced no text")
@@ -276,13 +304,20 @@ def generate(
     ]
     contents.append({"role": "user", "parts": [{"text": message}]})
 
+    generation_config: dict = {
+        "temperature": temperature,
+        "maxOutputTokens": max_output_tokens or settings.ai_max_output_tokens,
+    }
+    if settings.gemini_thinking_level:
+        # Gemini 3 uses thinkingLevel (thinkingBudget is the 2.x spelling).
+        generation_config["thinkingConfig"] = {
+            "thinkingLevel": settings.gemini_thinking_level
+        }
+
     body = {
         "systemInstruction": {"parts": [{"text": system_prompt}]},
         "contents": contents,
-        "generationConfig": {
-            "temperature": temperature,
-            "maxOutputTokens": max_output_tokens or settings.ai_max_output_tokens,
-        },
+        "generationConfig": generation_config,
     }
     url = f"{settings.gemini_base_url}/models/{model}:generateContent"
     headers = {"x-goog-api-key": settings.gemini_api_key, "Content-Type": "application/json"}

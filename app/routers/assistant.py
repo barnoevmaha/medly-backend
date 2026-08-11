@@ -606,14 +606,33 @@ def chat_stream(
         interrupted = False
         started = time.monotonic()
         provider_name = f"gemini:{settings.gemini_model}"
+        frames = 0
+
+        def mark(stage: str, extra: str = "") -> None:
+            if settings.stream_debug:
+                logger.info(
+                    "[SSE] %s t=%.3fs %s", stage, time.monotonic() - started, extra
+                )
 
         try:
+            # Padding first. A proxy that holds a response until some minimum
+            # is buffered will otherwise keep the stream open and silent, which
+            # looks exactly like "streaming does not work". SSE comment lines
+            # start with ':' and every client ignores them.
+            if settings.sse_preamble_bytes > 0:
+                yield ":" + (" " * settings.sse_preamble_bytes) + "\n\n"
+                mark("preamble flushed", f"bytes={settings.sse_preamble_bytes}")
+
             yield _sse("start", {"session_id": session_id})
+            mark("start frame")
 
             for fragment in provider.stream(question_text, history, context):
                 collected.append(fragment)
+                frames += 1
+                mark("sending frame", f"n={frames} chars={len(fragment)}")
                 yield _sse("chunk", {"text": fragment})
 
+            mark("done frame", f"frames={frames}")
             yield _sse(
                 "done",
                 {
@@ -679,6 +698,53 @@ def chat_stream(
         headers={
             "Cache-Control": "no-cache, no-transform",
             "X-Accel-Buffering": "no",  # nginx/proxies must not buffer this
+            "Connection": "keep-alive",
+        },
+    )
+
+
+@router.get("/debug-stream")
+def debug_stream():
+    """Infrastructure probe. Four frames, one second apart, no model involved.
+
+    This exists to split one question into two: does the *path* stream, or
+    does Gemini? Watch it with
+
+        curl -N https://<backend>/api/assistant/debug-stream
+
+    and read the arrival times:
+
+      * frames arrive one per second  -> FastAPI, uvicorn and the proxy are all
+        streaming correctly, and any delay in the real endpoint is Gemini or
+        the browser.
+      * all four arrive together at the end -> something between this process
+        and your terminal is buffering. That is a proxy or platform setting,
+        not application code.
+
+    Unauthenticated on purpose so `curl` needs no token, and therefore disabled
+    unless MEDLY_STREAM_DEBUG is set. It returns no data of any kind. Turn it
+    off once the question is answered.
+    """
+    if not settings.stream_debug:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    def frames():
+        if settings.sse_preamble_bytes > 0:
+            yield ":" + (" " * settings.sse_preamble_bytes) + "\n\n"
+        started = time.monotonic()
+        for word in ("ONE", " TWO", " THREE", " FOUR"):
+            elapsed = time.monotonic() - started
+            logger.info("[DEBUG-STREAM] sending %s at t=%.3fs", word.strip(), elapsed)
+            yield _sse("chunk", {"text": word, "t": round(elapsed, 3)})
+            time.sleep(1)
+        yield _sse("done", {"total_seconds": round(time.monotonic() - started, 3)})
+
+    return StreamingResponse(
+        frames(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
             "Connection": "keep-alive",
         },
     )
