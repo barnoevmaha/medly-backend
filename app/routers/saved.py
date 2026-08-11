@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, func, or_, select
 
 from app.db import get_session
-from app.models.social import Article, Resource, SavedItem
+from app.models.social import Article, BookProgress, Resource, SavedItem
 from app.models.user import User
 from app.security import get_current_user
 from app.services import gamification
@@ -42,6 +42,8 @@ class ResourceOut(BaseModel):
     pages: Optional[int]
     level: str
     topic: str
+    language: str
+    duration_minutes: Optional[int]
     saved: bool
 
 
@@ -81,6 +83,11 @@ def list_resources(
     kind: Optional[str] = None,
     level: Optional[str] = None,
     topic: Optional[str] = None,
+    language: Optional[str] = None,
+    year: Optional[int] = None,
+    min_duration: Optional[int] = None,
+    max_duration: Optional[int] = None,
+    sort: Optional[str] = "title",
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ) -> List[ResourceOut]:
@@ -89,13 +96,21 @@ def list_resources(
     Every filter here maps to a column that is actually populated. There is no
     filter for anything the data cannot answer.
     """
-    statement = select(Resource)
+    statement = select(Resource).where(Resource.published == True)  # noqa: E712
     if kind:
         statement = statement.where(Resource.kind == kind)
     if level:
         statement = statement.where(Resource.level == level)
     if topic:
         statement = statement.where(Resource.topic == topic)
+    if language:
+        statement = statement.where(Resource.language == language)
+    if year:
+        statement = statement.where(Resource.year == year)
+    if min_duration is not None:
+        statement = statement.where(Resource.duration_minutes >= min_duration)
+    if max_duration is not None:
+        statement = statement.where(Resource.duration_minutes <= max_duration)
     if q and q.strip():
         needle = f"%{q.strip().lower()}%"
         statement = statement.where(
@@ -107,7 +122,15 @@ def list_resources(
                 func.lower(Resource.topic).like(needle),
             )
         )
-    resources = session.exec(statement.order_by(Resource.title)).all()
+
+    order = {
+        "title": (Resource.title, False),
+        "rating": (Resource.rating, True),
+        "year": (Resource.year, True),
+        "duration": (Resource.duration_minutes, False),
+    }.get(sort or "title", (Resource.title, False))
+    column, newest_first = order
+    resources = session.exec(statement.order_by(column.desc() if newest_first else column)).all()
 
     saved: set = set()
     for item_type in ("book", "pdf", "video"):
@@ -133,10 +156,63 @@ def list_resources(
             pages=resource.pages,
             level=resource.level,
             topic=resource.topic,
+            language=resource.language,
+            duration_minutes=resource.duration_minutes,
             saved=f"{resource.kind}:{resource.slug}" in saved,
         )
         for resource in resources
     ]
+
+
+@router.get("/books/{slug}/progress")
+def book_progress(
+    slug: str,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Reading progress for one book. Unknown books are treated as 0%."""
+    resource = session.exec(select(Resource).where(Resource.slug == slug)).first()
+    if not resource or resource.kind not in ("book", "pdf"):
+        raise HTTPException(status_code=404, detail="Book not found")
+    row = session.exec(
+        select(BookProgress).where(
+            BookProgress.user_id == user.id,
+            BookProgress.resource_id == resource.id,
+        )
+    ).first()
+    return {"slug": slug, "percent": row.percent if row else 0}
+
+
+class BookProgressIn(BaseModel):
+    percent: int
+
+
+@router.put("/books/{slug}/progress")
+def update_book_progress(
+    slug: str,
+    payload: BookProgressIn,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> dict:
+    resource = session.exec(select(Resource).where(Resource.slug == slug)).first()
+    if not resource or resource.kind not in ("book", "pdf"):
+        raise HTTPException(status_code=404, detail="Book not found")
+    percent = max(0, min(100, payload.percent))
+    row = session.exec(
+        select(BookProgress).where(
+            BookProgress.user_id == user.id,
+            BookProgress.resource_id == resource.id,
+        )
+    ).first()
+    if row is None:
+        row = BookProgress(user_id=user.id or 0, resource_id=resource.id or 0, percent=percent)
+        session.add(row)
+    else:
+        row.percent = percent
+        row.updated_at = datetime.utcnow()
+        session.add(row)
+    session.commit()
+    return {"slug": slug, "percent": percent}
 
 
 @router.get("/saved", response_model=List[SavedOut])

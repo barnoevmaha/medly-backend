@@ -19,19 +19,29 @@ class Settings:
 
     database_url: str = os.getenv("MEDLY_DATABASE_URL", "sqlite:///./medly.db")
 
+    # Teacher uploads (cover art, question images) land here and are served
+    # back from /uploads. Use a persisted volume in production.
+    upload_dir: str = os.getenv("MEDLY_UPLOAD_DIR", "./data/uploads")
+
     cors_origins: List[str] = field(
         default_factory=lambda: _split(
             os.getenv("MEDLY_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
         )
     )
     # Deploy platforms hand out a new hostname per preview. Matching by pattern
-    # avoids redeploying the API to add each one.
+    # avoids redeploying the API to add each one. Replit previews use
+    # *.replit.dev (production) and *.replit.app (classic), Railway uses
+    # *.up.railway.app, Vercel uses *.vercel.app.
     cors_origin_regex: str = os.getenv(
-        "MEDLY_CORS_ORIGIN_REGEX", r"https://.*\.(up\.railway\.app|vercel\.app)"
+        "MEDLY_CORS_ORIGIN_REGEX",
+        r"https://.*\.(up\.railway\.app|vercel\.app|replit\.dev|replit\.app)",
     )
 
     # Containers start with an empty volume, so a fresh deploy has no curriculum
-    # and no demo accounts unless the seed runs on boot. Idempotent either way.
+    # and no demo accounts unless the seed runs on boot. Idempotent either way —
+    # every seed step skips rows that already exist, so leaving it on for every
+    # boot is safe. The one thing it must NOT do is rotate MEDLY_SECRET_KEY,
+    # because that would invalidate every stored session on restart.
     seed_on_startup: bool = os.getenv("MEDLY_SEED_ON_STARTUP", "false").lower() in {
         "1", "true", "yes",
     }

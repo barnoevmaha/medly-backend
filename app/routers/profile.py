@@ -69,6 +69,7 @@ class ProfileOut(BaseModel):
     challenges_completed: int
     comments: int
     joined_at: datetime
+    avatar_url: str = ""
 
 
 def _count(session: Session, model, *where) -> int:
@@ -121,6 +122,7 @@ def get_profile(
         challenges_completed=completed_challenges,
         comments=_count(session, ArticleComment, ArticleComment.user_id == user_id),
         joined_at=user.created_at,
+        avatar_url=user.avatar_url or "",
     )
 
 

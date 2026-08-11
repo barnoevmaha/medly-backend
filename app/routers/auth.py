@@ -44,6 +44,7 @@ class UserResponse(BaseModel):
     points: int = 0
     is_premium: bool = False
     show_on_leaderboard: bool = True
+    avatar_url: str = ""
 
 
 def _to_response(user: User) -> UserResponse:
@@ -57,6 +58,7 @@ def _to_response(user: User) -> UserResponse:
         points=user.points or 0,
         is_premium=bool(user.is_premium),
         show_on_leaderboard=bool(user.show_on_leaderboard),
+        avatar_url=user.avatar_url or "",
     )
 
 

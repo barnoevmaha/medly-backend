@@ -137,6 +137,72 @@ def migrate_columns() -> None:
             except Exception as error:  # pragma: no cover — depends on engine version
                 print(f"medly: could not drop {table_name}.{column_name}: {error}")
 
+    _relax_challenge_answer_choice(tables)
+
+
+def _relax_challenge_answer_choice(tables: set) -> None:
+    """`challenge_answers.choice_id` became nullable (numerical and short-answer
+    questions store no choice). SQLite cannot drop a NOT NULL constraint with
+    ALTER TABLE, so the table is rebuilt when the old constraint is detected;
+    Postgres gets a plain DROP NOT NULL.
+    """
+    if "challenge_answers" not in tables:
+        return
+
+    from sqlalchemy import inspect as sa_inspect
+
+    inspector = sa_inspect(engine)
+    columns = {column["name"]: column for column in inspector.get_columns("challenge_answers")}
+    if "answer_value" not in columns or columns["choice_id"].get("nullable", True):
+        return  # already migrated (or never had the old constraint)
+
+    from sqlalchemy import text
+
+    if _is_sqlite:
+        # SQLite 3.35+ supports DROP COLUMN but not dropping a NOT NULL
+        # constraint, so: copy the old table aside, create the new shape, move
+        # the rows, drop the original.
+        try:
+            with engine.begin() as connection:
+                connection.execute(text("ALTER TABLE challenge_answers RENAME TO challenge_answers_legacy"))
+                connection.execute(
+                    text(
+                        "CREATE TABLE challenge_answers ("
+                        "id INTEGER NOT NULL, "
+                        "user_id INTEGER NOT NULL, "
+                        "challenge_id INTEGER NOT NULL, "
+                        "question_id INTEGER NOT NULL, "
+                        "choice_id INTEGER, "
+                        "answer_value FLOAT, "
+                        "answer_text VARCHAR NOT NULL DEFAULT '', "
+                        "correct BOOLEAN NOT NULL, "
+                        "points_awarded INTEGER NOT NULL, "
+                        "answered_at DATETIME NOT NULL, "
+                        "PRIMARY KEY (id), "
+                        "FOREIGN KEY(choice_id) REFERENCES challenge_choices (id)"
+                        ")"
+                    )
+                )
+                connection.execute(
+                    text(
+                        "INSERT INTO challenge_answers (id, user_id, challenge_id, question_id, "
+                        "choice_id, answer_value, answer_text, correct, points_awarded, answered_at) "
+                        "SELECT id, user_id, challenge_id, question_id, choice_id, NULL, '', "
+                        "correct, points_awarded, answered_at FROM challenge_answers_legacy"
+                    )
+                )
+                connection.execute(text("DROP TABLE challenge_answers_legacy"))
+        except Exception as error:  # pragma: no cover — depends on engine version
+            print(f"medly: could not rebuild challenge_answers: {error}")
+    else:
+        try:
+            with engine.begin() as connection:
+                connection.execute(
+                    text("ALTER TABLE challenge_answers ALTER COLUMN choice_id DROP NOT NULL")
+                )
+        except Exception as error:  # pragma: no cover — depends on engine version
+            print(f"medly: could not relax challenge_answers.choice_id: {error}")
+
 
 def init_db() -> None:
     """Import models for their side effects, then create tables."""

@@ -42,16 +42,20 @@ class QuestionOut(BaseModel):
     order: int
     prompt: str
     points: int
+    kind: str
     choices: List[ChoiceOut]
     # Optional film for imaging questions. `image_alt` carries the finding in
     # words so the question is answerable without seeing the panel.
     image_seed: Optional[str] = None
+    image_url: Optional[str] = None
     image_alt: str = ""
     image_modality: str = "xray"
     # Present only once the question has been answered.
     answered: bool = False
     correct: Optional[bool] = None
     chosen_choice_id: Optional[int] = None
+    given_value: Optional[float] = None
+    given_text: str = ""
     correct_choice_id: Optional[int] = None
     explanation: Optional[str] = None
 
@@ -72,6 +76,8 @@ class ChallengeOut(BaseModel):
     answered_count: int
     earned_points: int
     completed: bool
+    thumbnail: str
+    duration_minutes: int
 
 
 class ChallengeDetailOut(ChallengeOut):
@@ -80,7 +86,11 @@ class ChallengeDetailOut(ChallengeOut):
 
 class AnswerIn(BaseModel):
     question_id: int
-    choice_id: int
+    # mcq / true_false questions answer by choice; numerical and short-answer
+    # questions carry their answer instead.
+    choice_id: Optional[int] = None
+    answer_value: Optional[float] = None
+    answer_text: Optional[str] = None
 
 
 class AnswerOut(BaseModel):
@@ -157,6 +167,8 @@ def _summary(session: Session, challenge: Challenge, user: User) -> ChallengeOut
         answered_count=len(answers),
         earned_points=earned,
         completed=bool(questions) and len(answers) >= len(questions),
+        thumbnail=challenge.thumbnail,
+        duration_minutes=challenge.duration_minutes,
     )
 
 
@@ -204,13 +216,17 @@ def get_challenge(
                 order=question.order,
                 prompt=question.prompt,
                 points=question.points,
+                kind=question.kind,
                 choices=[ChoiceOut(id=c.id or 0, text=c.text) for c in choices],
                 image_seed=question.image_seed,
+                image_url=question.image_url,
                 image_alt=question.image_alt,
                 image_modality=question.image_modality,
                 answered=answer is not None,
                 correct=answer.correct if answer else None,
                 chosen_choice_id=answer.choice_id if answer else None,
+                given_value=answer.answer_value if answer else None,
+                given_text=answer.answer_text or "" if answer else "",
                 # The correct answer is only ever sent after the question has
                 # been answered — otherwise the response is the answer key.
                 correct_choice_id=(correct_choice.id if answer and correct_choice else None),
@@ -257,9 +273,25 @@ def answer(
     choices = session.exec(
         select(ChallengeChoice).where(ChallengeChoice.question_id == question.id)
     ).all()
-    chosen = next((c for c in choices if c.id == payload.choice_id), None)
-    if not chosen:
-        raise HTTPException(status_code=422, detail="That choice is not on this question")
+    chosen: Optional[ChallengeChoice] = None
+    given_value: Optional[float] = None
+    given_text = ""
+
+    if question.kind in ("mcq", "true_false"):
+        chosen = next((c for c in choices if c.id == payload.choice_id), None)
+        if not chosen:
+            raise HTTPException(status_code=422, detail="That choice is not on this question")
+    elif question.kind == "numerical":
+        if payload.answer_value is None:
+            raise HTTPException(status_code=422, detail="A number is required for this question")
+        given_value = float(payload.answer_value)
+    elif question.kind == "short":
+        given_text = (payload.answer_text or "").strip()
+        if not given_text:
+            raise HTTPException(status_code=422, detail="An answer is required for this question")
+    else:
+        raise HTTPException(status_code=422, detail=f"Unknown question kind '{question.kind}'")
+
     correct_choice = next((c for c in choices if c.is_correct), None)
 
     existing = session.exec(
@@ -275,14 +307,28 @@ def answer(
         correct = existing.correct
         awarded = 0
     else:
-        correct = bool(chosen.is_correct)
+        if chosen is not None:
+            correct = bool(chosen.is_correct)
+        elif question.kind == "numerical":
+            target = question.answer_value
+            correct = target is not None and abs(float(target) - given_value) <= max(
+                0.05, abs(float(target)) * 0.01
+            )
+        else:
+            expected = (question.answer_text or "").strip().lower()
+            given = given_text.lower()
+            correct = bool(expected) and (
+                given == expected or (len(given) >= 4 and given in expected)
+            )
         awarded = question.points if correct else 0
         session.add(
             ChallengeAnswer(
                 user_id=user.id or 0,
                 challenge_id=challenge.id or 0,
                 question_id=question.id or 0,
-                choice_id=chosen.id or 0,
+                choice_id=chosen.id if chosen else None,
+                answer_value=given_value,
+                answer_text=given_text,
                 correct=correct,
                 points_awarded=awarded,
             )

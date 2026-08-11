@@ -37,6 +37,7 @@ class ArticleOut(BaseModel):
     read_minutes: int
     cover: str
     cover_alt: str
+    language: str
     published_at: datetime
     like_count: int
     comment_count: int
@@ -98,6 +99,7 @@ def _to_out(session: Session, article: Article, user_id: int, saved: set) -> Art
         read_minutes=article.read_minutes,
         cover=article.cover,
         cover_alt=article.cover_alt,
+        language=article.language,
         published_at=article.published_at,
         like_count=article.base_likes + counts["likes"],
         comment_count=counts["comments"],
@@ -110,6 +112,7 @@ def _to_out(session: Session, article: Article, user_id: int, saved: set) -> Art
 def list_articles(
     q: Optional[str] = Query(default=None, description="Free text — searches the body too"),
     tag: Optional[str] = None,
+    language: Optional[str] = None,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ) -> List[ArticleOut]:
@@ -119,9 +122,11 @@ def list_articles(
     "radiologists" has to find an article that only says the word halfway down,
     which a title-only filter would miss.
     """
-    statement = select(Article)
+    statement = select(Article).where(Article.published == True)  # noqa: E712
     if tag and tag != "All":
         statement = statement.where(Article.tag == tag)
+    if language:
+        statement = statement.where(Article.language == language)
     if q and q.strip():
         needle = f"%{q.strip().lower()}%"
         statement = statement.where(
@@ -145,7 +150,7 @@ def get_article(
     user: User = Depends(get_current_user),
 ) -> ArticleDetailOut:
     article = session.exec(select(Article).where(Article.slug == slug)).first()
-    if not article:
+    if not article or not article.published:
         raise HTTPException(status_code=404, detail="Article not found")
 
     saved = _saved_slugs(session, user.id or 0)

@@ -29,6 +29,13 @@ class Article(SQLModel, table=True):
     # are no external requests and no layout shift; `cover_alt` describes it.
     cover: str = Field(default="")
     cover_alt: str = Field(default="")
+    # Language of the content, for the Library language filter. Demo content
+    # ships in English, Russian and Uzbek.
+    language: str = Field(default="en", index=True)
+    # Teacher-authored articles start as drafts and only appear in the library
+    # once published.
+    published: bool = Field(default=True, index=True)
+    created_by: Optional[int] = None
     # Baseline so a fresh install does not show every article on zero.
     base_likes: int = Field(default=0)
     published_at: datetime = Field(default_factory=datetime.utcnow, index=True)
@@ -82,6 +89,29 @@ class Resource(SQLModel, table=True):
     pages: Optional[int] = None
     level: str = Field(default="", index=True)  # foundation | clinical | advanced
     topic: str = Field(default="", index=True)
+    language: str = Field(default="en", index=True)  # en | ru | uz
+    # Videos only: a number, so the duration filter can compare instead of
+    # parsing the display string ("3h 20m").
+    duration_minutes: Optional[int] = None
+    # Teacher-authored entries start as drafts and only show in the Library
+    # once published.
+    published: bool = Field(default=True, index=True)
+    created_by: Optional[int] = None
+
+
+class BookProgress(SQLModel, table=True):
+    """A student's reading progress on a book, as a percentage 0..100.
+
+    One row per (user, resource); the uniqueness is enforced in the router.
+    """
+
+    __tablename__ = "book_progress"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
+    resource_id: int = Field(index=True)
+    percent: int = Field(default=0)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class SavedItem(SQLModel, table=True):
