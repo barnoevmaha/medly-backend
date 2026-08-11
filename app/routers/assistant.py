@@ -6,32 +6,96 @@ Every request follows the same path, with no bypass:
 """
 from __future__ import annotations
 
+import logging
+import time
 import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Response
+from pydantic import BaseModel, Field as PydanticField
 from sqlmodel import Session, select
 
 from app.config import settings
 from app.db import get_session
 from app.models.assistant import AssistantMessage
 from app.models.enums import EventType, RiskLevel
+from app.models.social import Article
 from app.models.user import User
 from app.security import get_current_user
-from app.services import safety
-from app.services.assistant import SUGGESTED_PROMPTS, get_provider
+from app.services import ratelimit, safety
+from app.services.assistant import get_provider, suggested_prompts
 from app.services.audit import log_event
+from app.services.gemini import (
+    GeminiError,
+    GeminiRateLimited,
+    GeminiUnavailable,
+)
+
+logger = logging.getLogger("medly.assistant")
 
 router = APIRouter(prefix="/api/assistant", tags=["assistant"])
 
-HISTORY_TURNS = 6
+HISTORY_TURNS = settings.ai_history_turns
+
+# Process-wide. Both are per user, and both exist because the AI path is the
+# only endpoint here that costs money per call.
+_limiter, _in_flight = ratelimit.build(
+    settings.ai_rate_limit_per_minute, settings.ai_rate_limit_per_hour
+)
+
+# Follow-ups the UI offers under an answer. Kept server-side so the wording
+# stays consistent with the system prompt rather than drifting in the client.
+QUICK_ACTIONS = {
+    "simpler": "Explain that again more simply, as if I am earlier in my training.",
+    "deeper": "Go deeper on that — more mechanism and more clinical detail.",
+    "example": "Give me a concrete clinical example of that.",
+    "mcq": "Write 5 exam-style MCQs on that topic, with answers and brief explanations.",
+    "case": "Give me a clinical case based on that topic, with guiding questions.",
+    "summary": "Summarise that in a short set of key points I can revise from.",
+    "quiz": "Quiz me on that topic. Ask one question at a time and wait for my answer.",
+}
+
+
+def _article_context(session: Session, slug: str) -> Optional[str]:
+    """The article the user is reading, trimmed to a budget.
+
+    Only the one article they asked about — never a broader dump of the
+    library, which would cost tokens and add nothing.
+    """
+    article = session.exec(select(Article).where(Article.slug == slug)).first()
+    if not article:
+        return None
+    body = (article.body_md or article.excerpt or "")[: settings.ai_article_context_chars]
+    return (
+        "CONTEXT — the user is reading this Medly article and their question is "
+        "probably about it. Use it as the primary source, and say so if you add "
+        "knowledge from outside it.\n\n"
+        f"Title: {article.title}\n\n{body}"
+    )
+
+
+def _trim_history(rows: List[AssistantMessage], skip_content: str) -> List[dict]:
+    """Newest-first rows to oldest-first turns, inside a character budget."""
+    turns: List[dict] = []
+    budget = settings.ai_max_context_chars
+    for row in rows:
+        if row.content == skip_content:
+            continue
+        if budget - len(row.content) < 0:
+            break
+        budget -= len(row.content)
+        turns.append({"role": row.role, "content": row.content})
+    return list(reversed(turns))
 
 
 class ChatRequest(BaseModel):
-    message: str
+    message: str = PydanticField(default="", max_length=8000)
     session_id: Optional[str] = None
+    # Optional: ground the answer in one article the user is reading.
+    article_slug: Optional[str] = None
+    # Optional: one of QUICK_ACTIONS, used instead of a typed message.
+    action: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
@@ -43,6 +107,7 @@ class ChatResponse(BaseModel):
     disclaimer: str
     provider: str
     audit_event_id: Optional[int] = None
+    model: Optional[str] = None
 
 
 class MessageOut(BaseModel):
@@ -56,17 +121,32 @@ class MessageOut(BaseModel):
 
 @router.get("/suggestions", response_model=List[str])
 def suggestions() -> List[str]:
-    return SUGGESTED_PROMPTS
+    return suggested_prompts()
 
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(
     payload: ChatRequest,
+    response: Response,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ) -> ChatResponse:
     session_id = payload.session_id or str(uuid.uuid4())
-    verdict = safety.screen_message(payload.message)
+
+    text = (QUICK_ACTIONS.get(payload.action) if payload.action else payload.message) or ""
+    text = text.strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="Type a question first.")
+    if len(text) > settings.ai_max_message_chars:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"That message is too long. Keep it under "
+                f"{settings.ai_max_message_chars:,} characters."
+            ),
+        )
+
+    verdict = safety.screen_message(text)
 
     # The stored copy is always redacted, even when the message is allowed.
     session.add(
@@ -131,14 +211,60 @@ def chat(
         .order_by(AssistantMessage.created_at.desc())  # type: ignore[union-attr]
         .limit(HISTORY_TURNS * 2)
     ).all()
-    history = [
-        {"role": row.role, "content": row.content}
-        for row in reversed(history_rows)
-        if row.content != verdict.redacted_text
-    ]
+    history = _trim_history(list(history_rows), verdict.redacted_text)
 
-    provider = get_provider()
-    result = provider.reply(verdict.redacted_text, history)
+    context = _article_context(session, payload.article_slug) if payload.article_slug else None
+
+    # Two ceilings before the paid call: one request at a time per user, and a
+    # sliding window on top of it.
+    key = str(user.id)
+    if not _in_flight.acquire(key):
+        raise HTTPException(
+            status_code=429,
+            detail="Medly AI is still working on your last question. Give it a moment.",
+        )
+    try:
+        verdict_rate = _limiter.check(key)
+        if not verdict_rate.allowed:
+            response.headers["Retry-After"] = str(verdict_rate.retry_after_seconds)
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    "You have reached the Medly AI limit for now. "
+                    f"Try again in {verdict_rate.retry_after_seconds} seconds."
+                ),
+            )
+
+        provider = get_provider()
+        started = time.monotonic()
+        try:
+            result = provider.reply(verdict.redacted_text, history, context)
+        except GeminiError as exc:
+            # The detail goes to the log; only `user_message` reaches the client.
+            logger.error(
+                "assistant provider failed user=%s provider=%s error=%s",
+                user.id, settings.assistant_provider, exc.detail,
+            )
+            status = 429 if isinstance(exc, GeminiRateLimited) else 503
+            if not isinstance(exc, (GeminiRateLimited, GeminiUnavailable)):
+                status = 503
+            raise HTTPException(status_code=status, detail=exc.user_message) from exc
+        except Exception as exc:  # noqa: BLE001 - never leak a provider traceback
+            logger.exception("assistant provider crashed user=%s", user.id)
+            raise HTTPException(
+                status_code=503,
+                detail="Medly AI is temporarily unavailable. Please try again in a moment.",
+            ) from exc
+
+        latency_ms = int((time.monotonic() - started) * 1000)
+        logger.info(
+            "assistant reply user=%s provider=%s latency_ms=%d chars=%d article=%s",
+            user.id, result.provider, latency_ms, len(result.content),
+            payload.article_slug or "-",
+        )
+    finally:
+        _in_flight.release(key)
+
     answer = safety.apply_disclaimer(result.content, verdict.risk_level)
 
     session.add(
@@ -174,6 +300,7 @@ def chat(
         disclaimer=settings.disclaimer,
         provider=result.provider,
         audit_event_id=event.id,
+        model=settings.gemini_model if result.provider.startswith("gemini") else None,
     )
 
 

@@ -244,7 +244,12 @@ class RuleBasedProvider:
 
     name = "rules"
 
-    def reply(self, message: str, history: List[Dict[str, str]]) -> AssistantReply:
+    def reply(
+        self,
+        message: str,
+        history: List[Dict[str, str]],
+        context: Optional[str] = None,
+    ) -> AssistantReply:
         text = message.lower()
         best: Optional[Dict[str, object]] = None
         best_score = 0
@@ -275,19 +280,25 @@ class AnthropicProvider:
 
     name = "anthropic"
 
-    def reply(self, message: str, history: List[Dict[str, str]]) -> AssistantReply:
+    def reply(
+        self,
+        message: str,
+        history: List[Dict[str, str]],
+        context: Optional[str] = None,
+    ) -> AssistantReply:
         try:
             import anthropic  # imported lazily so the default path needs no dependency
         except ImportError as exc:  # pragma: no cover
             raise RuntimeError("pip install anthropic to use this provider") from exc
 
         client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        system = SYSTEM_PROMPT if not context else f"{SYSTEM_PROMPT}\n\n{context}"
         messages = [{"role": m["role"], "content": m["content"]} for m in history]
         messages.append({"role": "user", "content": message})
         response = client.messages.create(
             model="claude-sonnet-4-5",
             max_tokens=1024,
-            system=SYSTEM_PROMPT,
+            system=system,
             messages=messages,
         )
         return AssistantReply(content=response.content[0].text, provider=self.name)
@@ -298,14 +309,20 @@ class OpenAIProvider:
 
     name = "openai"
 
-    def reply(self, message: str, history: List[Dict[str, str]]) -> AssistantReply:
+    def reply(
+        self,
+        message: str,
+        history: List[Dict[str, str]],
+        context: Optional[str] = None,
+    ) -> AssistantReply:
         try:
             from openai import OpenAI  # imported lazily
         except ImportError as exc:  # pragma: no cover
             raise RuntimeError("pip install openai to use this provider") from exc
 
         client = OpenAI(api_key=settings.openai_api_key)
-        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        system = SYSTEM_PROMPT if not context else f"{SYSTEM_PROMPT}\n\n{context}"
+        messages = [{"role": "system", "content": system}]
         messages.extend({"role": m["role"], "content": m["content"]} for m in history)
         messages.append({"role": "user", "content": message})
         response = client.chat.completions.create(
@@ -314,10 +331,44 @@ class OpenAIProvider:
         return AssistantReply(content=response.choices[0].message.content or "", provider=self.name)
 
 
+class GeminiProvider:
+    """Medly AI, backed by Google Gemini.
+
+    The key lives in the server environment and the call is made from this
+    process, so the browser never sees it. Provider errors are classified in
+    `services.gemini` and re-raised for the router to turn into a friendly
+    message — this class deliberately does not swallow them, because silently
+    falling back to the offline rules engine would tell the user their medical
+    question was answered by a model when it was answered by a keyword match.
+    """
+
+    name = "gemini"
+
+    def reply(
+        self,
+        message: str,
+        history: List[Dict[str, str]],
+        context: Optional[str] = None,
+    ) -> AssistantReply:
+        from app.services import gemini  # imported lazily, like the others
+
+        system = MEDLY_AI_SYSTEM_PROMPT
+        if context:
+            system = f"{MEDLY_AI_SYSTEM_PROMPT}\n\n{context}"
+
+        result = gemini.generate(
+            system_prompt=system,
+            history=history,
+            message=message,
+        )
+        return AssistantReply(content=result.text, provider=f"gemini:{result.model}")
+
+
 _PROVIDERS = {
     "rules": RuleBasedProvider,
     "anthropic": AnthropicProvider,
     "openai": OpenAIProvider,
+    "gemini": GeminiProvider,
 }
 
 
@@ -326,10 +377,33 @@ def get_provider() -> AssistantProvider:
     return provider_cls()
 
 
-SUGGESTED_PROMPTS = [
+MEDICAL_PROMPTS = [
+    "Explain the pathophysiology of myocardial infarction",
+    "Compare Type 1 and Type 2 diabetes",
+    "Create 10 MCQs about pharmacology",
+    "Explain nephrotic vs nephritic syndrome",
+    "Give me a clinical case about pneumonia",
+    "Explain this topic as if I am preparing for an exam",
+]
+
+AI_SAFETY_PROMPTS = [
     "What is automation bias?",
     "Why can a 95% accurate model still be wrong most of the time?",
     "What is dataset shift?",
     "Can I trust a saliency heatmap?",
     "What should I ask before using a clinical AI tool?",
 ]
+
+
+def suggested_prompts() -> List[str]:
+    """Examples that match what the active provider can actually answer.
+
+    The offline rules engine only knows the AI-safety curriculum, so offering
+    a student "Explain nephrotic syndrome" when it would answer with a fallback
+    would be a worse first impression than offering nothing.
+    """
+    return MEDICAL_PROMPTS if settings.assistant_provider == "gemini" else AI_SAFETY_PROMPTS
+
+
+# Kept for backwards compatibility with existing imports.
+SUGGESTED_PROMPTS = AI_SAFETY_PROMPTS

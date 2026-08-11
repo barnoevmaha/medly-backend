@@ -32,9 +32,13 @@ PyMySQL>=1.1.0
 httpx>=0.28.1
 pytest>=8.3.4
 
-# Optional, deliberately not installed. The assistant defaults to the offline
-# rules engine, and imports these lazily inside the provider that needs them —
-# so the default path stays dependency-free and a missing package is a clear
-# runtime message rather than a failed deploy.
+# Medly AI (MEDLY_ASSISTANT_PROVIDER=gemini) needs no extra package. It calls
+# the documented Gemini REST endpoint with httpx, already listed above — one
+# less dependency to install, pin and keep current, and the request shape is
+# small enough that an SDK would only be wrapping a single POST.
+#
+# Optional, deliberately not installed. Imported lazily inside the provider
+# that needs them, so the default path stays dependency-free and a missing
+# package is a clear runtime message rather than a failed deploy.
 #   anthropic     for MEDLY_ASSISTANT_PROVIDER=anthropic
 #   openai        for MEDLY_ASSISTANT_PROVIDER=openai

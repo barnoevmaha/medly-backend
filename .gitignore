@@ -1,0 +1,25 @@
+# Secrets. GEMINI_API_KEY lives here — it must never reach the repository.
+.env
+.env.*
+!.env.example
+
+# Local database and uploads
+*.db
+*.db-journal
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
