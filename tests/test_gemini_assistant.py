@@ -97,41 +97,41 @@ def test_article_context_is_passed_as_system_context(gemini_on, monkeypatch) -> 
 def test_missing_key_raises_not_configured(monkeypatch) -> None:
     monkeypatch.setattr(settings, "gemini_api_key", "", raising=False)
     with pytest.raises(gemini.GeminiNotConfigured):
-        gemini.generate(system_prompt="s", history=[], message="hi")
+        gemini.generate(system_prompt="s", history=[], message="Explain sepsis")
 
 
 def test_auth_error_is_not_retried(gemini_on, monkeypatch) -> None:
     sent = patch_post(monkeypatch, [FakeResponse(403, {}, "forbidden")])
     with pytest.raises(gemini.GeminiAuthError):
-        gemini.generate(system_prompt="s", history=[], message="hi")
+        gemini.generate(system_prompt="s", history=[], message="Explain sepsis")
     assert len(sent) == 1
 
 
 def test_model_not_found(gemini_on, monkeypatch) -> None:
     patch_post(monkeypatch, [FakeResponse(404, {}, "not found")])
     with pytest.raises(gemini.GeminiModelNotFound):
-        gemini.generate(system_prompt="s", history=[], message="hi")
+        gemini.generate(system_prompt="s", history=[], message="Explain sepsis")
 
 
 def test_429_retries_then_gives_up(gemini_on, monkeypatch) -> None:
     monkeypatch.setattr(gemini, "BASE_BACKOFF_SECONDS", 0.0)
     sent = patch_post(monkeypatch, [FakeResponse(429, {}, "quota")])
     with pytest.raises(gemini.GeminiRateLimited):
-        gemini.generate(system_prompt="s", history=[], message="hi")
+        gemini.generate(system_prompt="s", history=[], message="Explain sepsis")
     assert len(sent) == gemini.MAX_ATTEMPTS  # 1 try + 2 retries, then stop
 
 
 def test_transient_500_then_success(gemini_on, monkeypatch) -> None:
     monkeypatch.setattr(gemini, "BASE_BACKOFF_SECONDS", 0.0)
     patch_post(monkeypatch, [FakeResponse(503, {}, "unavailable"), FakeResponse(200, ok_payload())])
-    result = gemini.generate(system_prompt="s", history=[], message="hi")
+    result = gemini.generate(system_prompt="s", history=[], message="Explain sepsis")
     assert result.text.startswith("## Definition")
 
 
 def test_empty_candidates_is_handled(gemini_on, monkeypatch) -> None:
     patch_post(monkeypatch, [FakeResponse(200, {"promptFeedback": {"blockReason": "SAFETY"}})])
     with pytest.raises(gemini.GeminiBadResponse):
-        gemini.generate(system_prompt="s", history=[], message="hi")
+        gemini.generate(system_prompt="s", history=[], message="Explain sepsis")
 
 
 # --------------------------------------------------------------------------
@@ -161,11 +161,11 @@ def test_rate_limit_returns_429_and_friendly_message(
 
     for _ in range(2):
         assert client.post(
-            "/api/assistant/chat", json={"message": "hi"}, headers=student_headers
+            "/api/assistant/chat", json={"message": "Explain sepsis"}, headers=student_headers
         ).status_code == 200
 
     blocked = client.post(
-        "/api/assistant/chat", json={"message": "hi"}, headers=student_headers
+        "/api/assistant/chat", json={"message": "Explain sepsis"}, headers=student_headers
     )
     assert blocked.status_code == 429
     assert "limit" in blocked.json()["detail"].lower()
@@ -177,7 +177,7 @@ def test_upstream_429_becomes_friendly_message(
     monkeypatch.setattr(gemini, "BASE_BACKOFF_SECONDS", 0.0)
     patch_post(monkeypatch, [FakeResponse(429, {}, "quota exceeded")])
     response = client.post(
-        "/api/assistant/chat", json={"message": "hi"}, headers=student_headers
+        "/api/assistant/chat", json={"message": "Explain sepsis"}, headers=student_headers
     )
     assert response.status_code == 429
     detail = response.json()["detail"]
@@ -208,7 +208,7 @@ def test_quick_action_needs_no_typed_message(
 
 
 def test_chat_requires_authentication(client: TestClient) -> None:
-    assert client.post("/api/assistant/chat", json={"message": "hi"}).status_code == 401
+    assert client.post("/api/assistant/chat", json={"message": "Explain sepsis"}).status_code == 401
 
 
 def test_rules_provider_still_default(client: TestClient, student_headers: dict) -> None:
@@ -266,14 +266,14 @@ def test_generate_stream_yields_fragments(gemini_on, monkeypatch) -> None:
         monkeypatch,
         FakeStream(200, [sse("Myocardial "), "", sse("infarction "), sse("occurs.")]),
     )
-    out = list(gemini.generate_stream(system_prompt="s", history=[], message="hi"))
+    out = list(gemini.generate_stream(system_prompt="s", history=[], message="Explain sepsis"))
     assert out == ["Myocardial ", "infarction ", "occurs."]
 
 
 def test_generate_stream_maps_http_errors(gemini_on, monkeypatch) -> None:
     patch_stream(monkeypatch, FakeStream(429, [], "quota"))
     with pytest.raises(gemini.GeminiRateLimited):
-        list(gemini.generate_stream(system_prompt="s", history=[], message="hi"))
+        list(gemini.generate_stream(system_prompt="s", history=[], message="Explain sepsis"))
 
 
 def test_stream_endpoint_emits_sse_and_saves_one_message(
@@ -314,16 +314,16 @@ def test_stream_respects_rate_limit(
 
     with client.stream(
         "POST", "/api/assistant/chat/stream",
-        json={"message": "one"}, headers=student_headers,
+        json={"message": "Explain sepsis"}, headers=student_headers,
     ) as first:
         assert first.status_code == 200
         first.read()
 
     blocked = client.post(
-        "/api/assistant/chat/stream", json={"message": "two"}, headers=student_headers
+        "/api/assistant/chat/stream", json={"message": "Explain asthma"}, headers=student_headers
     )
     assert blocked.status_code == 429
 
 
 def test_stream_requires_authentication(client: TestClient) -> None:
-    assert client.post("/api/assistant/chat/stream", json={"message": "hi"}).status_code == 401
+    assert client.post("/api/assistant/chat/stream", json={"message": "Explain sepsis"}).status_code == 401

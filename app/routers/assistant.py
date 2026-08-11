@@ -26,7 +26,7 @@ from app.models.challenge import Challenge
 from app.models.social import Article, Resource
 from app.models.user import User
 from app.security import get_current_user
-from app.services import ratelimit, safety
+from app.services import ratelimit, safety, scope
 from app.services.assistant import get_provider, suggested_prompts
 from app.services.audit import log_event
 from app.services.gemini import (
@@ -58,6 +58,43 @@ QUICK_ACTIONS = {
     "summary": "Summarise that in a short set of key points I can revise from.",
     "quiz": "Quiz me on that topic. Ask one question at a time and wait for my answer.",
 }
+
+
+def _record_refusal(
+    session: Session,
+    *,
+    session_id: str,
+    user_id: int,
+    reason: str,
+) -> Optional[int]:
+    """Persist an out-of-scope refusal and audit it. No provider is called."""
+    session.add(
+        AssistantMessage(
+            session_id=session_id,
+            user_id=user_id,
+            role="assistant",
+            content=scope.REFUSAL,
+            risk_level=RiskLevel.NONE,
+            blocked=True,
+            block_reason=f"out of scope: {reason}",
+            provider="scope-guard",
+        )
+    )
+    session.commit()
+    event = log_event(
+        session,
+        user_id=user_id,
+        event_type=EventType.ASSISTANT_BLOCKED,
+        risk_level=RiskLevel.NONE,
+        ai_model="scope-guard",
+        ai_version="1.0",
+        ai_output_summary=scope.REFUSAL,
+        blocked=True,
+        block_reason=f"out of scope: {reason}",
+        session_id=session_id,
+        meta={"scope_reason": reason},
+    )
+    return event.id
 
 
 def _page_context(
@@ -259,9 +296,36 @@ def chat(
     ).all()
     history = _trim_history(list(history_rows), verdict.redacted_text)
 
-    kind = payload.context_kind or ("article" if payload.article_slug else None)
-    key = payload.context_key or payload.article_slug
-    context = _page_context(session, kind, key, payload.context_note)
+    ctx_kind = payload.context_kind or ("article" if payload.article_slug else None)
+    ctx_key = payload.context_key or payload.article_slug
+    context = _page_context(session, ctx_kind, ctx_key, payload.context_note)
+
+    # ---- topic boundary ---------------------------------------------------
+    # Before the provider and before the rate window: an off-topic question
+    # costs nothing and is answered from this process.
+    in_scope = scope.classify(
+        text,
+        has_page_context=bool(context),
+        has_history=bool(history),
+        is_quick_action=bool(payload.action),
+    )
+    if not in_scope.in_scope:
+        logger.info(
+            "assistant refused out of scope user=%s reason=%s", user.id, in_scope.reason
+        )
+        event_id = _record_refusal(
+            session, session_id=session_id, user_id=user.id or 0, reason=in_scope.reason
+        )
+        return ChatResponse(
+            session_id=session_id,
+            reply=scope.REFUSAL,
+            blocked=True,
+            block_reason="out of scope",
+            risk_level=RiskLevel.NONE,
+            disclaimer=settings.disclaimer,
+            provider="scope-guard",
+            audit_event_id=event_id,
+        )
 
     # Two ceilings before the paid call: one request at a time per user, and a
     # sliding window on top of it.
@@ -574,6 +638,41 @@ def chat_stream(
     kind = payload.context_kind or ("article" if payload.article_slug else None)
     key = payload.context_key or payload.article_slug
     context = _page_context(session, kind, key, payload.context_note)
+
+    # ---- topic boundary ---------------------------------------------------
+    # No Gemini stream is opened for an off-topic question. The refusal is a
+    # complete, valid SSE exchange so the client needs no special case.
+    in_scope = scope.classify(
+        text,
+        has_page_context=bool(context),
+        has_history=bool(history),
+        is_quick_action=bool(payload.action),
+    )
+    if not in_scope.in_scope:
+        logger.info(
+            "assistant refused out of scope (stream) user=%s reason=%s",
+            user.id, in_scope.reason,
+        )
+        _record_refusal(
+            session, session_id=session_id, user_id=user.id or 0, reason=in_scope.reason
+        )
+
+        def out_of_scope():
+            yield _sse("start", {"session_id": session_id})
+            yield _sse("chunk", {"text": scope.REFUSAL})
+            yield _sse(
+                "done",
+                {
+                    "session_id": session_id,
+                    "blocked": True,
+                    "block_reason": "out of scope",
+                    "risk_level": RiskLevel.NONE.value,
+                    "disclaimer": settings.disclaimer,
+                    "interrupted": False,
+                },
+            )
+
+        return StreamingResponse(out_of_scope(), media_type="text/event-stream")
 
     # Same two ceilings as the blocking endpoint, applied before streaming so
     # they can be reported as a real status code rather than buried in a frame.
