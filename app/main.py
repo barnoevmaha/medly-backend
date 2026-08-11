@@ -74,9 +74,20 @@ app.include_router(profile.router)
 
 @app.get("/api/health", tags=["meta"])
 def health() -> dict:
+    # `commit` answers "is Railway actually running the code I just pushed?"
+    # without guessing — Railway injects RAILWAY_GIT_COMMIT_SHA at build time.
+    # `streaming` says whether the SSE endpoint exists in this build at all.
+    import os
+
     return {
         "status": "ok",
+        "commit": (os.getenv("RAILWAY_GIT_COMMIT_SHA") or "unknown")[:7],
         "assistant_provider": settings.assistant_provider,
+        "streaming": any(
+            getattr(route, "path", "") == "/api/assistant/chat/stream"
+            for route in app.routes
+        ),
+        "stream_debug": settings.stream_debug,
         "inference_engine": settings.inference_engine,
         "confidence_threshold": settings.low_confidence_threshold,
     }
