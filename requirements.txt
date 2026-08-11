@@ -22,10 +22,12 @@ PyJWT>=2.9.0
 bcrypt>=4.2.0
 python-multipart>=0.0.20
 
-# Postgres driver. Unused when MEDLY_DATABASE_URL points at SQLite, but having
-# it installed means switching database is a variable change and not a redeploy
-# of a different image.
+# Database drivers. Both are unused when MEDLY_DATABASE_URL points at SQLite,
+# but having them installed means switching database is a variable change and
+# not a rebuild. PyMySQL rather than mysqlclient because it is pure Python and
+# needs no C toolchain in the image.
 psycopg[binary]>=3.2.0
+PyMySQL>=1.1.0
 
 httpx>=0.28.1
 pytest>=8.3.4

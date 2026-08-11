@@ -14,16 +14,28 @@ from app.config import settings
 
 
 def _normalise(url: str) -> str:
-    """Make a hosted Postgres URL usable by SQLAlchemy.
+    """Name the driver explicitly in the URL.
 
-    Railway, Heroku and Fly hand out `postgres://…`, a scheme SQLAlchemy 2.x
-    rejects outright. `postgresql://…` defaults to psycopg2, which is not what
-    we install. Both are rewritten to name psycopg 3 explicitly.
+    Hosted databases hand out URLs that either use a scheme SQLAlchemy rejects
+    or one that resolves to a driver we do not install:
+
+      postgres://      Railway, Heroku and Fly still emit this. SQLAlchemy 2.x
+                       refuses it outright.
+      postgresql://    Defaults to psycopg2. We install psycopg 3.
+      mysql://         Defaults to MySQLdb, which needs a C toolchain to build.
+                       We install PyMySQL, which is pure Python.
+
+    Rewriting here means MEDLY_DATABASE_URL can be pasted straight from a
+    provider dashboard without anyone having to know this.
     """
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql+psycopg://", 1)
-    elif url.startswith("postgresql://"):
-        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
+    prefixes = {
+        "postgres://": "postgresql+psycopg://",
+        "postgresql://": "postgresql+psycopg://",
+        "mysql://": "mysql+pymysql://",
+    }
+    for old, new in prefixes.items():
+        if url.startswith(old):
+            return url.replace(old, new, 1)
     return url
 
 
