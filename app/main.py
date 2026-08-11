@@ -1,6 +1,8 @@
 """Medly API — AI safety training for medical education."""
 from __future__ import annotations
 
+import logging
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -8,6 +10,28 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db import init_db
+
+# --------------------------------------------------------------------------
+# Logging
+#
+# uvicorn configures only its own `uvicorn*` loggers. It never calls
+# basicConfig and never touches the root logger, so an application logger like
+# `medly.gemini` inherits root's WARNING with no handler attached — and every
+# logger.info() in this codebase is discarded before it reaches stdout.
+#
+# Configuring just the `medly` namespace turns our own logs on without making
+# SQLAlchemy and friends verbose. propagate=False keeps a single copy of each
+# line even if something else configures root later.
+# --------------------------------------------------------------------------
+_medly_log = logging.getLogger("medly")
+if not _medly_log.handlers:
+    _handler = logging.StreamHandler(sys.stdout)
+    _handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
+    )
+    _medly_log.addHandler(_handler)
+_medly_log.setLevel(logging.DEBUG if settings.stream_debug else logging.INFO)
+_medly_log.propagate = False
 from app.routers import (
     analysis,
     assistant,
