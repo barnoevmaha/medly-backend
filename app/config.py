@@ -68,6 +68,7 @@ class Settings:
     ai_history_turns: int = int(os.getenv("MEDLY_AI_HISTORY_TURNS", "6"))
     ai_max_context_chars: int = int(os.getenv("MEDLY_AI_MAX_CONTEXT_CHARS", "12000"))
     ai_article_context_chars: int = int(os.getenv("MEDLY_AI_ARTICLE_CONTEXT_CHARS", "6000"))
+    ai_note_context_chars: int = int(os.getenv("MEDLY_AI_NOTE_CONTEXT_CHARS", "1500"))
 
     # Per-user request ceiling, counted in this process.
     ai_rate_limit_per_minute: int = int(os.getenv("MEDLY_AI_RATE_LIMIT_PER_MINUTE", "12"))

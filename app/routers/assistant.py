@@ -20,7 +20,8 @@ from app.config import settings
 from app.db import get_session
 from app.models.assistant import AssistantMessage
 from app.models.enums import EventType, RiskLevel
-from app.models.social import Article
+from app.models.challenge import Challenge
+from app.models.social import Article, Resource
 from app.models.user import User
 from app.security import get_current_user
 from app.services import ratelimit, safety
@@ -57,22 +58,61 @@ QUICK_ACTIONS = {
 }
 
 
-def _article_context(session: Session, slug: str) -> Optional[str]:
-    """The article the user is reading, trimmed to a budget.
+def _page_context(
+    session: Session, kind: Optional[str], key: Optional[str], note: Optional[str]
+) -> Optional[str]:
+    """What the user is looking at, resolved from our own database.
 
-    Only the one article they asked about — never a broader dump of the
-    library, which would cost tokens and add nothing.
+    The client sends a kind and a slug, never content. Whatever the model is
+    told about an article or a challenge therefore comes from the same rows the
+    page rendered, trimmed to a budget — a client cannot enlarge the prompt or
+    put words in the source material.
+
+    `note` is the exception: on-screen state the server has no cheap way to
+    know, such as which question is showing. It is capped hard.
     """
-    article = session.exec(select(Article).where(Article.slug == slug)).first()
-    if not article:
-        return None
-    body = (article.body_md or article.excerpt or "")[: settings.ai_article_context_chars]
-    return (
-        "CONTEXT — the user is reading this Medly article and their question is "
-        "probably about it. Use it as the primary source, and say so if you add "
-        "knowledge from outside it.\n\n"
-        f"Title: {article.title}\n\n{body}"
-    )
+    parts: List[str] = []
+
+    if kind == "article" and key:
+        article = session.exec(select(Article).where(Article.slug == key)).first()
+        if article:
+            body = (article.body_md or article.excerpt or "")[
+                : settings.ai_article_context_chars
+            ]
+            parts.append(
+                "CONTEXT — the user is reading this Medly article, so their question "
+                "is probably about it. Treat it as the primary source and say so when "
+                "you add knowledge from outside it.\n\n"
+                f"Article: {article.title}\n\n{body}"
+            )
+
+    elif kind == "resource" and key:
+        resource = session.exec(select(Resource).where(Resource.slug == key)).first()
+        if resource:
+            parts.append(
+                "CONTEXT — the user is studying this item from the Medly library. "
+                "You have its description, not its full text; do not pretend to have "
+                "read or watched it.\n\n"
+                f"Title: {resource.title}\n"
+                f"Author: {resource.author}\n"
+                f"Topic: {resource.topic}\n\n{resource.description}"
+            )
+
+    elif kind == "challenge" and key:
+        challenge = session.exec(select(Challenge).where(Challenge.slug == key)).first()
+        if challenge:
+            parts.append(
+                "CONTEXT — the user is working through this Medly challenge. Teach the "
+                "reasoning behind the question. Do not simply reveal an answer they have "
+                "not attempted yet.\n\n"
+                f"Challenge: {challenge.title}\n"
+                f"Difficulty: {challenge.difficulty}\n\n{challenge.description}"
+            )
+
+    if note:
+        parts.append(f"ON SCREEN NOW:\n{note[: settings.ai_note_context_chars]}")
+
+    return "\n\n".join(parts) if parts else None
 
 
 def _trim_history(rows: List[AssistantMessage], skip_content: str) -> List[dict]:
@@ -92,7 +132,11 @@ def _trim_history(rows: List[AssistantMessage], skip_content: str) -> List[dict]
 class ChatRequest(BaseModel):
     message: str = PydanticField(default="", max_length=8000)
     session_id: Optional[str] = None
-    # Optional: ground the answer in one article the user is reading.
+    # Optional page grounding. The server resolves kind+key from its own rows.
+    context_kind: Optional[str] = None
+    context_key: Optional[str] = None
+    context_note: Optional[str] = PydanticField(default=None, max_length=4000)
+    # Legacy alias, still accepted so older clients keep working.
     article_slug: Optional[str] = None
     # Optional: one of QUICK_ACTIONS, used instead of a typed message.
     action: Optional[str] = None
@@ -213,7 +257,9 @@ def chat(
     ).all()
     history = _trim_history(list(history_rows), verdict.redacted_text)
 
-    context = _article_context(session, payload.article_slug) if payload.article_slug else None
+    kind = payload.context_kind or ("article" if payload.article_slug else None)
+    key = payload.context_key or payload.article_slug
+    context = _page_context(session, kind, key, payload.context_note)
 
     # Two ceilings before the paid call: one request at a time per user, and a
     # sliding window on top of it.
@@ -258,9 +304,9 @@ def chat(
 
         latency_ms = int((time.monotonic() - started) * 1000)
         logger.info(
-            "assistant reply user=%s provider=%s latency_ms=%d chars=%d article=%s",
+            "assistant reply user=%s provider=%s latency_ms=%d chars=%d context=%s",
             user.id, result.provider, latency_ms, len(result.content),
-            payload.article_slug or "-",
+            f"{kind or '-'}:{key or '-'}",
         )
     finally:
         _in_flight.release(key)
