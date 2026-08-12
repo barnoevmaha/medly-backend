@@ -23,7 +23,13 @@ from app.models.challenge import (
 )
 from app.models.community import Community, CommunityMessage
 from app.models.enums import Modality, Role
-from app.models.social import Article, Resource
+from app.models.social import (
+    Article,
+    ArticleComment,
+    ArticleLike,
+    Resource,
+    SavedItem,
+)
 from app.models.user import User
 
 NOW = datetime.utcnow()
@@ -35,343 +41,155 @@ NOW = datetime.utcnow()
 
 ARTICLES = [
     {
-        "slug": "ai-assisted-reading-what-the-evidence-says",
-        "tag": "Medical News",
-        "title": "What the Evidence Actually Says About AI-Assisted Reading",
-        "author": "Dr. Sarah Chen",
-        "author_role": "Radiology, Columbia",
-        "read_minutes": 7,
-        "base_likes": 234,
+        "slug": "post-concussion-syndrome-when-symptoms-persist",
+        "tag": "Neurology",
+        "title": "Post-Concussion Syndrome: When Symptoms Don't Go Away",
+        "author": "Dr Neil Graham",
+        "author_role": "Consultant neurologist \u2014 concussion, TBI and dementia, Central London",
+        "read_minutes": 6,
+        "base_likes": 0,
         "hours_ago": 2,
+        "cover": "/covers/articles/post-concussion-syndrome-when-symptoms-persist.jpg",
         "excerpt": (
-            "Artificial intelligence can assist radiologists in detecting abnormalities, but "
-            "the size of that benefit depends almost entirely on how the tool is introduced "
-            "into the reading workflow."
+            "A concussion usually settles within a few weeks. For a significant minority it "
+            "does not \u2014 and the severity of the original injury turns out to be a poor "
+            "guide to who those people will be."
         ),
-        "body_md": (
-            "Artificial intelligence can assist radiologists in detecting abnormalities on "
-            "chest radiographs, mammograms and head CT — that much is no longer seriously "
-            "disputed. What remains contested, and what matters far more for patients, is the "
-            "size of that benefit and the conditions under which it survives contact with a "
-            "real department.\n\n"
-            "## The headline numbers are reader-plus-model, not model\n\n"
-            "Most positive trials report the performance of a *combined* system: a clinician "
-            "reading with the tool available. That combination frequently beats the unaided "
-            "reader. It does not follow that the model alone is safe, and it does not follow "
-            "that the combination beats the reader in every subgroup.\n\n"
-            "The Swedish MASAI trial randomised over 80,000 women to AI-supported versus "
-            "standard double reading in breast screening. Cancer detection rose modestly and "
-            "screen-reading workload fell substantially. The workload result was arguably the "
-            "more important one: it changes staffing, and staffing changes what a service can "
-            "offer.\n\n"
-            "## Where the gains disappear\n\n"
-            "Three things reliably erode a published benefit:\n\n"
-            "1. **Distribution shift.** A model validated on one vendor's scanners at three "
-            "academic sites does not automatically transfer to a district general hospital "
-            "with older equipment and a different case mix.\n"
-            "2. **Prevalence.** Positive predictive value falls as prevalence falls. A tool "
-            "impressive in an enriched research set can generate an unworkable false-positive "
-            "rate in routine screening.\n"
-            "3. **The human in the loop.** If the reader defers to the model when it is wrong, "
-            "the combined system inherits the model's errors and adds nothing. This is "
-            "automation bias, and it is measurable: the override rate is the metric to watch.\n\n"
-            "## What a department should ask before deployment\n\n"
-            "- On which population, and which equipment, was this validated?\n"
-            "- What is the performance stratified by age, sex and ethnicity — not in aggregate?\n"
-            "- What happens to the output when the model is uncertain? Does it abstain, or does "
-            "it guess with the same confident interface?\n"
-            "- Who reviews flagged cases, and is that person's time actually funded?\n\n"
-            "## The uncomfortable part\n\n"
-            "The most reliable predictor of whether an imaging AI deployment improves care is "
-            "not the model's reported AUC. It is whether the department built a review process "
-            "around it and kept measuring after go-live. Tools do not fail loudly. They drift, "
-            "quietly, while the dashboard still shows green.\n\n"
-            "> Read the film. Commit to your own answer. Then look at the model, and notice "
-            "whether it changed your mind and why."
-        ),
+        "body_md": '''A concussion \u2014 a *mild traumatic brain injury* (mTBI) \u2014 typically resolves within a few weeks. For a significant number of people, the physical, cognitive and psychological effects persist for months or even years.
+
+When neurological symptoms fail to clear within the expected timeframe, they can severely disrupt someone's ability to work, study and maintain relationships. This article outlines how post-concussion syndrome develops, when to seek specialist advice, and the therapeutic pathways available.
+
+## What are the symptoms after mild TBI?
+
+Symptoms after mild TBI, sometimes termed *post-concussion syndrome*, are highly varied and typically span physical, cognitive and emotional categories. They can appear immediately after the head injury or emerge days later, and often fluctuate in intensity depending on physical exertion or mental focus.
+
+- **Physical:** persistent headaches (frequently resembling migraine or tension headache), dizziness, nausea, light and sound sensitivity, and fatigue.
+- **Cognitive:** difficulty concentrating, brain fog, short-term memory deficits, slowed information processing, reduced ability to multitask.
+- **Emotional and behavioural:** irritability, anxiety, low mood, emotional sensitivity.
+- **Sleep:** insomnia, fragmented sleep, or an excessive need for sleep during the day.
+
+## Why do symptoms persist?
+
+Studies suggest that as many as half of people may not be fully recovered six months after a so-called mild TBI. The underlying mechanisms are complex and multi-faceted, bringing together the direct physical effects of injury \u2014 disruption to brain tissue \u2014 and difficulties with brain function that do not directly reflect damage, such as psychological problems. The brain's ability to process information efficiently can become impaired, producing a wide array of symptoms that fluctuate with daily activity levels.
+
+Research shows that the severity of the initial head injury does not necessarily predict who will develop chronic symptoms. A history of previous concussions, pre-existing migraine, or pre-injury psychiatric problems can each increase vulnerability to prolonged recovery.
+
+## When should someone seek a specialist neurological assessment?
+
+Follow the standard advice after a possible TBI first, so that no emergency problem is missed \u2014 see the [NHS guidance on head injury and concussion](https://www.nhs.uk/conditions/head-injury-and-concussion/).
+
+Where problems are ongoing, a head-injury specialist neurologist can help. A specialist examination reviews the injury in detail and evaluates a range of neurological systems: cognition, psychiatric symptoms, sleep, and vestibular function (balance and spatial orientation). Because standard CT scans often appear completely normal following a mild head injury, it is the detailed clinical history and specialised symptom assessment that establish an accurate management plan.
+
+## Management and rehabilitation pathways
+
+Modern management of persistent post-concussive symptoms has shifted away from prolonged dark-room rest towards targeted, active rehabilitation, tailored to each patient's symptom profile.
+
+- **Sub-symptom threshold exercise** \u2014 carefully controlled, gradual cardiovascular training that restores normal autonomic function and improves blood flow to the brain without triggering symptoms.
+- **Vestibular and ocular therapy** \u2014 specialised physical therapy that retrains the integration of visual and balance signals, directly reducing dizziness and nausea.
+- **Cognitive rehabilitation** \u2014 structured strategies and pacing techniques, guided by neuropsychologists, for memory deficits, attention difficulties and mental fatigue.
+- **Pharmacological support** \u2014 targeted medication for post-traumatic headache, sleep disturbance or associated mood change.
+
+## What is the long-term outlook?
+
+The outlook is highly encouraging where care is structured and specialist-guided. The brain possesses a remarkable capacity for neuroplasticity \u2014 the ability to adapt, reorganise and forge new neural pathways over time. Working with a specialist neurologist, people can successfully manage their symptoms, regain control over daily life, and return to their personal and professional goals.
+
+## References
+
+- National Institute for Health and Care Excellence (NICE). *Head injury: assessment and early management* (NG232), 2024.
+- *UK Concussion Guidelines for Non-Elite (Grassroots) Sport.*
+- Leddy JJ, et al. Rest and exercise early after sport-related concussion: a systematic review and meta-analysis. *Br J Sports Med* 2023;57(12):762\u2013770. doi:10.1136/bjsports-2022-106676
+- Woodrow RE, et al. Acute thalamic connectivity precedes chronic postconcussive symptoms in mild traumatic brain injury. *Brain*, 26 April 2023. doi:10.1093/brain/awad056
+
+---
+
+*Written in association with Dr Neil Graham, consultant neurologist specialising in concussion, traumatic brain injury (TBI) and dementia in Central London. Published 28/05/2026; edited by Karolyn Judge, 05/06/2026.*''',
     },
     {
-        "slug": "active-recall-the-evidence",
-        "tag": "Study Tip",
-        "title": "Active Recall: Why Testing Yourself Beats Re-Reading",
-        "author": "StudyHacks",
-        "author_role": "Medly Learning",
-        "read_minutes": 5,
-        "base_likes": 567,
-        "hours_ago": 4,
-        "excerpt": (
-            "Stop passive reading. Retrieval practice improves long-term retention by roughly "
-            "50% over re-reading, and the effect is largest exactly where medical students "
-            "need it — weeks later, under exam conditions."
-        ),
-        "body_md": (
-            "Re-reading feels productive because fluency feels like knowledge. It is not. The "
-            "sensation of a passage being easy to read is a property of the passage, not of "
-            "your memory of it.\n\n"
-            "## The core finding\n\n"
-            "Roediger and Karpicke's testing-effect work is the reference point: students who "
-            "studied a passage once and then tested themselves repeatedly outperformed those "
-            "who re-read it repeatedly, by a wide margin at one week — even though the "
-            "re-readers *predicted* they would do better. Confidence and retention move in "
-            "opposite directions here.\n\n"
-            "## Why retrieval works\n\n"
-            "Pulling something out of memory is itself the learning event. Each successful "
-            "retrieval strengthens the route back to it and, importantly, teaches you which "
-            "routes are missing. Recognition — the feeling of \"yes, I've seen that\" — does "
-            "not do this.\n\n"
-            "## A protocol that survives a clinical timetable\n\n"
-            "1. **Read once, actively.** One pass, generating questions as you go.\n"
-            "2. **Close the book and write.** Blank page, everything you remember, no peeking. "
-            "The gaps you find are the syllabus.\n"
-            "3. **Space it.** Same material at day 1, day 3, day 7, day 21. Spacing beats "
-            "cramming for anything you need past the exam.\n"
-            "4. **Interleave.** Mix cardiology and respiratory in one session. It feels worse "
-            "and works better, because diagnosis in real life is not sorted by chapter.\n"
-            "5. **Explain it out loud.** If you cannot explain the mechanism to a colleague "
-            "without notes, you have recognition, not recall.\n\n"
-            "## The trap\n\n"
-            "Highlighting, re-copying notes and re-watching lectures all feel like work and "
-            "produce almost nothing durable. The techniques that work feel harder while you "
-            "are doing them. That discomfort is the signal, not the problem."
-        ),
-    },
-    {
-        "slug": "virtual-anatomy-lab-cardiac-conduction",
-        "tag": "Upcoming Event",
-        "title": "Virtual Anatomy Lab: The Cardiac Conduction System",
-        "author": "Medly Events",
-        "author_role": "Events team",
+        "slug": "autoimmune-encephalitis-and-the-brain-under-attack",
+        "tag": "Neurology",
+        "title": "Autoimmune Encephalitis: When the Immune System Attacks the Brain",
+        "author": "Dr James Varley",
+        "author_role": "Neurologist, Central London",
         "read_minutes": 4,
-        "base_likes": 189,
+        "base_likes": 0,
         "hours_ago": 6,
+        "cover": "/covers/articles/autoimmune-encephalitis-and-the-brain-under-attack.jpg",
         "excerpt": (
-            "An interactive 3D session on the conduction system of the heart, built for "
-            "second-year students preparing for physiology exams. Places are limited."
+            "Confusion, memory loss and a personality change that arrives over days. The "
+            "presentation resembles psychiatric illness closely enough that the diagnosis is "
+            "often reached late \u2014 and treatment works best when it is reached early."
         ),
-        "body_md": (
-            "## What the session covers\n\n"
-            "Ninety minutes, live, working through the conduction system in a rotatable 3D "
-            "heart with the electrical activity overlaid on the anatomy in real time.\n\n"
-            "- Sinoatrial node: intrinsic rate, autonomic modulation, why it wins the race\n"
-            "- Internodal pathways and the atrial depolarisation front\n"
-            "- The atrioventricular node and the ~100 ms delay that makes atrial kick possible\n"
-            "- Bundle of His, the bundle branches, and the Purkinje network\n"
-            "- Mapping each step onto the surface ECG, wave by wave\n\n"
-            "## Why it is worth ninety minutes\n\n"
-            "Most students can recite the pathway and still cannot explain why a bundle branch "
-            "block widens the QRS. The gap is spatial: the sequence is memorised as a list "
-            "rather than as a wavefront moving through tissue. Watching the front propagate "
-            "and then breaking a branch to see what happens fixes that in a way a diagram "
-            "does not.\n\n"
-            "## Preparation\n\n"
-            "Come with the normal ECG intervals in your head — PR, QRS, QT. The session "
-            "assumes them and builds on top. A tablet or second screen helps if you want to "
-            "annotate.\n\n"
-            "## Format\n\n"
-            "Live walkthrough, then a case-based segment where the group localises a block "
-            "from the trace before the answer is shown. Recording available afterwards to "
-            "everyone who registers."
-        ),
+        "body_md": '''Autoimmune encephalitis is a group of conditions in which the body's immune system mistakenly attacks healthy brain cells, causing inflammation of the brain. It can affect people of all ages, though certain types are more common in young adults and children. Because the brain governs behaviour, memory and bodily function, that inflammation produces a wide range of symptoms which often appear suddenly and progress rapidly.
+
+## How it presents
+
+Common early signs include confusion, memory loss, and changes in personality or behaviour. Individuals may become anxious or paranoid, or experience hallucinations.
+
+As the condition advances, more severe neurological symptoms can develop: seizures, difficulty speaking, abnormal movements, or loss of consciousness. In some cases patients require intensive care because of complications affecting breathing or heart function.
+
+## The antibodies involved
+
+Autoimmune encephalitis is often associated with antibodies that target specific proteins in the brain. One well-known form involves antibodies against NMDA (N-methyl-D-aspartate) receptors, which disrupt normal brain signalling and produce the characteristic symptoms.
+
+The condition can sometimes be linked to tumours \u2014 particularly ovarian teratomas \u2014 though many cases occur with no identifiable trigger.
+
+## Why diagnosis is difficult
+
+Diagnosis is challenging because the symptoms may resemble psychiatric disorders or viral infections. Clinicians typically rely on a combination of clinical evaluation, brain imaging, spinal fluid analysis and blood tests to detect specific antibodies.
+
+Early diagnosis matters: prompt treatment significantly improves outcomes.
+
+## Treatment
+
+Treatment usually involves immunotherapy to reduce the immune system's attack on the brain. This may include corticosteroids, intravenous immunoglobulin (IVIG), or plasma exchange. Where a tumour is implicated, surgical removal is often necessary.
+
+With timely treatment many patients recover well, though rehabilitation may be needed to address lingering cognitive or physical difficulties. Ongoing research continues to improve understanding and management of this complex condition.
+
+---
+
+*Written in association with Dr James Varley, neurologist in Central London. Published 18/06/2026; edited by Conor Lynch, 18/06/2026.*''',
     },
     {
-        "slug": "automation-bias-in-the-reading-room",
-        "tag": "Medical News",
-        "title": "Automation Bias Is a Clinical Skill Problem, Not a Software Problem",
-        "author": "Dr. Amara Okafor",
-        "author_role": "Clinical safety lead",
-        "read_minutes": 6,
-        "base_likes": 312,
-        "hours_ago": 20,
-        "excerpt": (
-            "When a decision support tool is wrong, the harm depends on what the clinician "
-            "does next. That step is trainable, and almost nobody trains it."
-        ),
-        "body_md": (
-            "Automation bias has two faces. **Errors of commission**: doing what the system "
-            "suggests when it is wrong. **Errors of omission**: missing something because the "
-            "system did not flag it. The second is harder to detect and, in imaging, probably "
-            "more common.\n\n"
-            "## The experiment that should worry you\n\n"
-            "In studies where clinicians are shown decision support that is deliberately "
-            "incorrect on a subset of cases, accuracy on those cases falls sharply compared "
-            "with unaided reading. Experienced clinicians are not immune. Under time pressure "
-            "the effect gets worse, and time pressure is the normal operating condition of "
-            "every department in the country.\n\n"
-            "## Why \"just be careful\" fails\n\n"
-            "Vigilance is not a stable resource. Telling readers to stay sceptical works for "
-            "about a fortnight after the training session. What holds is structural:\n\n"
-            "- **Order of operations.** Record your own read before the model output is "
-            "visible. Anchoring cannot happen to an opinion you have already committed.\n"
-            "- **Visible uncertainty.** Outputs below the confidence threshold should look "
-            "different, not merely carry a smaller number.\n"
-            "- **Measured overrides.** If a department's override rate is near zero, that is "
-            "not agreement, it is rubber-stamping — and it is visible in the audit log.\n"
-            "- **Named accountability.** Every decision carries a human name, always.\n\n"
-            "## What this means for training\n\n"
-            "Teaching students *how the model works* is necessary and insufficient. They also "
-            "need supervised practice at disagreeing with one: cases where the tool is "
-            "confidently wrong, in a setting where saying so costs nothing. That skill is the "
-            "difference between a safety net and a single point of failure."
-        ),
-    },
-    {
-        "slug": "reading-a-chest-film-systematically",
-        "tag": "Study Tip",
-        "title": "A System for Chest Films That Survives a Night Shift",
-        "author": "Dr. Michael Chen",
-        "author_role": "Emergency medicine",
-        "read_minutes": 6,
-        "base_likes": 428,
-        "hours_ago": 30,
-        "excerpt": (
-            "Pattern recognition is what you build to. A fixed search order is what stops you "
-            "missing the second finding once you have found the first."
-        ),
-        "body_md": (
-            "The classic failure on a chest radiograph is not missing the abnormality. It is "
-            "finding one and stopping — satisfaction of search. A fixed order is the cheapest "
-            "protection against it.\n\n"
-            "## Before the anatomy\n\n"
-            "Name, date, projection, rotation, inspiration, penetration. A rotated or "
-            "underinspired film changes what you are allowed to conclude, and half the "
-            "\"cardiomegaly\" on AP portable films is projection.\n\n"
-            "## A workable order\n\n"
-            "1. **Airway** — trachea central, carina, bronchi\n"
-            "2. **Breathing** — lung fields zone by zone, compare left with right at the same "
-            "height, then the pleural edges\n"
-            "3. **Circulation** — heart size and contour, mediastinal width, hila\n"
-            "4. **Diaphragm** — contours, costophrenic angles, gas under the domes\n"
-            "5. **Everything else** — bones, soft tissues, lines, tubes, and the areas people "
-            "skip: apices, behind the heart, below the diaphragm\n\n"
-            "## The review areas\n\n"
-            "Apices, hila, retrocardiac, retrodiaphragmatic, bones. Roughly speaking, that is "
-            "where the missed findings live. Going back to them deliberately, every time, "
-            "after you think you are done, catches a surprising proportion of them.\n\n"
-            "## Then say it out loud\n\n"
-            "Summarise in one sentence: what you see, what it means, what you would do. If "
-            "that sentence is hard to say, the read is not finished — and an AI second opinion "
-            "will not finish it for you."
-        ),
-    },
-    {
-        "slug": "privacy-what-de-identification-misses",
-        "tag": "Medical News",
-        "title": "De-Identified Is Not Anonymous: What Image Scrubbing Misses",
-        "author": "Priya Nair",
-        "author_role": "Clinical informatics",
+        "slug": "oncology-must-confront-hidden-side-effects",
+        "tag": "Oncology",
+        "title": "Oncology Must Confront Hidden Side Effects",
+        "author": "Nature Medicine",
+        "author_role": "Editorial \u2014 Nature Medicine",
         "read_minutes": 5,
-        "base_likes": 176,
-        "hours_ago": 46,
+        "base_likes": 0,
+        "hours_ago": 10,
+        "cover": "/covers/articles/oncology-must-confront-hidden-side-effects.jpg",
         "excerpt": (
-            "Header scrubbing is the easy half of imaging privacy. Burned-in text, "
-            "reconstructable faces and rare anatomy are the half that gets institutions into "
-            "trouble."
+            "Cancer therapy has become dramatically more targeted, and patients are living "
+            "longer. The systems for recording what those therapies cost patients day to day "
+            "have not kept pace."
         ),
-        "body_md": (
-            "Sharing imaging for teaching is normal, valuable, and routinely done with a "
-            "confidence the technical reality does not support.\n\n"
-            "## The three layers\n\n"
-            "**Headers.** DICOM carries a long list of identifying tags, and vendor-private "
-            "tags vary by scanner. A script that clears the standard fields and ignores the "
-            "private ones leaves identity in the file.\n\n"
-            "**Pixels.** Ultrasound and portable radiographs frequently have the patient name "
-            "and record number burned into the image. No amount of header work touches this. "
-            "It has to be detected in the rendered image and masked.\n\n"
-            "**Anatomy.** Head CT and MRI can be volume-rendered into a recognisable face, and "
-            "face-matching against public photographs has been demonstrated repeatedly. Rare "
-            "hardware, unusual anatomy and distinctive surgical history identify people on "
-            "their own.\n\n"
-            "## Why automation is not the answer on its own\n\n"
-            "Automated redaction is very good at removing what it can name and structurally "
-            "unable to tell you what it missed. A tool that reports zero findings looks "
-            "identical whether the image was clean or the detector was pointed at the wrong "
-            "layer. Accepting that output unchecked is automation bias wearing a privacy "
-            "costume.\n\n"
-            "## A defensible workflow\n\n"
-            "Automatic pass produces a proposal. A named human verifies the rendered image, "
-            "not just the metadata. Only then does the image become available to learners, and "
-            "the verification is recorded against the verifier. Minimum necessary applies "
-            "throughout: an age band and a sex, never a date of birth.\n\n"
-            "> If you cannot name the person who checked the image, it has not been checked."
-        ),
-    },
-    {
-        "slug": "sepsis-models-and-the-alarm-problem",
-        "tag": "Medical News",
-        "title": "Sepsis Prediction Models and the Alarm Fatigue Problem",
-        "author": "Dr. James Wilson",
-        "author_role": "Critical care",
-        "read_minutes": 6,
-        "base_likes": 203,
-        "hours_ago": 60,
-        "excerpt": (
-            "A widely deployed sepsis alert performed far worse in external validation than "
-            "its marketing suggested, and fired on so many patients that clinicians learned to "
-            "ignore it."
-        ),
-        "body_md": (
-            "Early warning for sepsis is a genuinely good idea. It is also the clearest "
-            "worked example of how a model can be technically defensible and clinically "
-            "useless at the same time.\n\n"
-            "## What external validation found\n\n"
-            "A widely deployed proprietary sepsis prediction model, evaluated independently "
-            "across tens of thousands of hospitalisations, achieved an area under the curve "
-            "far below the vendor's reported figure. It missed most sepsis cases and generated "
-            "alerts on a large fraction of all patients. Both numbers matter, and the second "
-            "may matter more.\n\n"
-            "## Alert fatigue is a predictable consequence, not bad luck\n\n"
-            "If a system fires often and is right rarely, staff learn — correctly, "
-            "rationally — to discount it. That learned discounting then applies to the true "
-            "positives too. A poorly calibrated alert does not merely fail to help; it "
-            "degrades the response to every other alert in the building.\n\n"
-            "## The lessons that generalise\n\n"
-            "- **Demand external validation.** Vendor-reported performance on internal data is "
-            "a marketing claim.\n"
-            "- **Ask about the alert budget.** How many alerts per shift, and who is "
-            "responding? If nobody has costed the response, the deployment is not real.\n"
-            "- **Monitor after go-live.** Patient mix, documentation habits and coding all "
-            "drift. Performance measured once is performance measured never.\n"
-            "- **Watch what staff actually do.** Silent dismissal rates tell you more than any "
-            "satisfaction survey.\n\n"
-            "None of this argues against prediction models. It argues that the deployment, not "
-            "the algorithm, is the intervention."
-        ),
-    },
-    {
-        "slug": "usmle-step-1-adaptive-practice",
-        "tag": "Sponsored",
-        "title": "Adaptive Step 1 Practice: What to Look For in a Question Bank",
-        "author": "MedPrep",
-        "author_role": "Sponsored content",
-        "read_minutes": 4,
-        "base_likes": 892,
-        "hours_ago": 26,
-        "excerpt": (
-            "Sponsored: adaptive question banks are now standard. The features that actually "
-            "affect your score are not the ones in the advertising."
-        ),
-        "body_md": (
-            "*This post is sponsored. Medly labels sponsored content and does not endorse the "
-            "product.*\n\n"
-            "## What matters in a question bank\n\n"
-            "1. **Explanation quality.** You learn from the explanation, not the question. If "
-            "it does not say why each wrong option is wrong, it is a scoring tool, not a "
-            "teaching tool.\n"
-            "2. **Spacing built in.** A bank that re-surfaces your misses on a schedule beats "
-            "one that leaves the scheduling to you.\n"
-            "3. **Honest difficulty calibration.** Questions harder than the real exam waste "
-            "time and damage morale; easier ones create false confidence.\n"
-            "4. **Performance by system and by skill.** \"Cardiology 62%\" is actionable. "
-            "\"Overall 71%\" is not.\n\n"
-            "## What matters less than the marketing suggests\n\n"
-            "Total question count past a few thousand, video libraries you will not watch, and "
-            "\"AI-powered\" tutoring that mostly rewords the explanation you already have.\n\n"
-            "## A fair warning about AI tutors\n\n"
-            "Language models are fluent and occasionally, confidently wrong about mechanism "
-            "and dosing. Treat generated explanations as a study partner's opinion: useful for "
-            "prompting recall, not a citable source. Check anything that will end up in a "
-            "clinical decision against a primary reference."
-        ),
+        "body_md": '''> **About this piece.** This is a summary of the *Nature Medicine* editorial "Oncology must confront hidden side effects" (doi:[10.1038/s41591-026-04554-9](https://doi.org/10.1038/s41591-026-04554-9)), included here for teaching. Read the original for the full argument and its citations.
+
+Recent breakthroughs in cancer therapy \u2014 immunotherapies, antibody\u2013drug conjugates and bispecific antibodies \u2014 have transformed oncology care. Treatment is more precisely targeted to a patient's tumour, and overall survival is lengthening. But people who survive cancer can face lifelong challenges from treatment-induced toxicities with both short- and long-term effects, and the editorial's argument is that the tooling for recording and managing those effects has not innovated at the same pace as the drugs.
+
+## What current reporting misses
+
+Trial reporting leans on CTCAE grading, which was not designed to capture functional and psychological disruption. Impaired daily functioning and emotional wellbeing therefore sit outside the framework \u2014 they are, in the editorial's word, *hidden* from prescribing clinicians in the first years after a therapy rolls out.
+
+Full quality-of-life data, which would cover daily functioning and emotional wellbeing, frequently goes undisclosed because follow-up is short. The consequence is practical: patients may be less accepting of new agents when the expected toxicities cannot be described to them, because those toxicities are unknown, underappreciated, or their severity is underestimated.
+
+## Why the gaps persist
+
+Two structural problems compound the measurement gap.
+
+1. **Exposure takes time.** Some toxicities \u2014 certain skin toxicities among them \u2014 only come to light once a broader patient population has been exposed to the drug. Early trial populations are too small and too selected to surface them.
+2. **Disciplines are siloed.** Historical siloing limits knowledge transfer about how to detect, monitor and manage therapy-induced toxicity. Cytokine release syndrome in CAR T cell therapy and immune-related adverse events in checkpoint inhibition are the examples given \u2014 syndromes that demand expertise which may sit in a different department entirely.
+
+As therapies are implemented across more cancer types, rare treatment-induced syndromes become more likely to appear, and coordinated research into their mechanisms is what would let clinicians mitigate the risk and develop better-targeted treatments.
+
+## Why this matters for training
+
+The editorial is a reminder that a treatment's record is incomplete until someone has asked the patient how they are actually functioning \u2014 and that a grading scale which does not ask cannot report the answer. For anyone learning to appraise oncology evidence, the useful habit is to check what a trial measured before accepting what it concluded about tolerability.
+
+---
+
+*Source: Editorial, "Oncology must confront hidden side effects", Nature Medicine. doi:10.1038/s41591-026-04554-9*''',
     },
 ]
 
@@ -436,22 +254,22 @@ RESOURCES = [
      "description": "Twelve questions to ask before an imaging model touches a patient."},
 
     # Videos --------------------------------------------------------------
-    {"slug": "ecg-masterclass", "kind": "video", "title": "ECG Interpretation Masterclass",
+    {"slug": "ecg-masterclass", "kind": "video", "orientation": "landscape", "title": "ECG Interpretation Masterclass",
      "author": "Dr. Sarah Williams", "rating": 4.6, "downloads": "12,400", "premium": False,
      "duration": "3h 20m", "cover_hue": 340, "publisher": "Medly Studio", "year": 2025,
      "level": "clinical", "topic": "Cardiology",
      "description": "Rate, rhythm, axis, intervals — then forty traces worked through live."},
-    {"slug": "surgical-techniques-vol-1", "kind": "video", "title": "Surgical Techniques Vol. 1",
+    {"slug": "surgical-techniques-vol-1", "kind": "video", "orientation": "landscape", "title": "Surgical Techniques Vol. 1",
      "author": "Dr. Michael Chen", "rating": 4.7, "downloads": "8,900", "premium": False,
      "duration": "5h 10m", "cover_hue": 220, "publisher": "Medly Studio", "year": 2024,
      "level": "clinical", "topic": "Surgery",
      "description": "Knots, closure, instrument handling and theatre discipline for students."},
-    {"slug": "reading-chest-films", "kind": "video", "title": "Reading Chest Films Under Pressure",
+    {"slug": "reading-chest-films", "kind": "video", "orientation": "landscape", "title": "Reading Chest Films Under Pressure",
      "author": "Dr. Priya Nair", "rating": 4.8, "downloads": "10,300", "premium": True,
      "duration": "1h 45m", "cover_hue": 195, "publisher": "Medly Studio", "year": 2026,
      "level": "clinical", "topic": "Radiology",
      "description": "A search pattern that holds at 3am, with twenty on-call cases."},
-    {"slug": "automation-bias-workshop", "kind": "video", "title": "Automation Bias: A Practical Workshop",
+    {"slug": "automation-bias-workshop", "kind": "video", "orientation": "landscape", "title": "Automation Bias: A Practical Workshop",
      "author": "Medly Safety Faculty", "rating": 4.9, "downloads": "4,700", "premium": False,
      "duration": "58m", "cover_hue": 40, "publisher": "Medly Studio", "year": 2026,
      "level": "advanced", "topic": "Clinical AI",
@@ -868,26 +686,57 @@ CASES = [
 # One-line description of each cover, used as the image alt text. Written per
 # article rather than generated, because "cover image" is not alt text.
 ARTICLE_COVER_ALT = {
-    "ai-assisted-reading-what-the-evidence-says":
-        "Abstract chest radiograph with a highlighted region and a confidence bar",
-    "active-recall-the-evidence":
-        "A blank page beside a closed book, illustrating retrieval practice",
-    "virtual-anatomy-lab-cardiac-conduction":
-        "Stylised heart with the conduction pathway traced through it",
-    "automation-bias-in-the-reading-room":
-        "Two overlapping panels: a human read and a model read, disagreeing",
-    "reading-a-chest-film-systematically":
-        "Chest radiograph divided into numbered search zones",
-    "privacy-what-de-identification-misses":
-        "A scan with its metadata panel redacted line by line",
-    "sepsis-models-and-the-alarm-problem":
-        "A rising alert curve with most alerts marked as false",
-    "usmle-step-1-adaptive-practice":
-        "A question card with an adaptive difficulty ladder behind it",
+    "post-concussion-syndrome-when-symptoms-persist":
+        "A wall of MRI head scans on a lightbox, labelled \u2018what is mTBI\u2019",
+    "autoimmune-encephalitis-and-the-brain-under-attack":
+        "Axial CT of the head showing an area of low attenuation",
+    "oncology-must-confront-hidden-side-effects":
+        "Illustration of a researcher at a microscope beside a magnified field of cells",
 }
 
 
+# Articles that shipped with earlier versions of this seed and have since been
+# replaced. They are removed on boot so a database seeded before the change ends
+# up with the same feed as a fresh one. Their comments, likes and saved rows go
+# with them \u2014 those reference the article by id or slug and would otherwise dangle.
+RETIRED_ARTICLE_SLUGS = (
+    "ai-assisted-reading-what-the-evidence-says",
+    "active-recall-the-evidence",
+    "virtual-anatomy-lab-cardiac-conduction",
+    "automation-bias-in-the-reading-room",
+    "reading-a-chest-film-systematically",
+    "privacy-what-de-identification-misses",
+    "sepsis-models-and-the-alarm-problem",
+    "usmle-step-1-adaptive-practice",
+)
+
+
+def _retire_articles(session: Session) -> None:
+    """Drop replaced articles and everything that pointed at them."""
+    for slug in RETIRED_ARTICLE_SLUGS:
+        article = session.exec(select(Article).where(Article.slug == slug)).first()
+        if article is None:
+            continue
+        for comment in session.exec(
+            select(ArticleComment).where(ArticleComment.article_id == article.id)
+        ).all():
+            session.delete(comment)
+        for like in session.exec(
+            select(ArticleLike).where(ArticleLike.article_id == article.id)
+        ).all():
+            session.delete(like)
+        for saved in session.exec(
+            select(SavedItem).where(
+                SavedItem.item_type == "article", SavedItem.item_key == slug
+            )
+        ).all():
+            session.delete(saved)
+        session.delete(article)
+    session.commit()
+
+
 def _seed_articles(session: Session) -> None:
+    _retire_articles(session)
     for spec in ARTICLES:
         if session.exec(select(Article).where(Article.slug == spec["slug"])).first():
             continue
@@ -901,7 +750,7 @@ def _seed_articles(session: Session) -> None:
                 author=str(spec["author"]),
                 author_role=str(spec["author_role"]),
                 read_minutes=int(spec["read_minutes"]),
-                cover=f"/covers/articles/{spec['slug']}.svg",
+                cover=str(spec.get("cover", f"/covers/articles/{spec['slug']}.svg")),
                 cover_alt=ARTICLE_COVER_ALT.get(str(spec["slug"]), ""),
                 base_likes=int(spec["base_likes"]),
                 published_at=NOW - timedelta(hours=int(spec["hours_ago"])),
@@ -918,6 +767,7 @@ def _seed_resources(session: Session) -> None:
             Resource(
                 slug=str(spec["slug"]),
                 kind=str(spec["kind"]),
+                orientation=str(spec.get("orientation", "landscape")),
                 title=str(spec["title"]),
                 author=str(spec["author"]),
                 description=str(spec["description"]),

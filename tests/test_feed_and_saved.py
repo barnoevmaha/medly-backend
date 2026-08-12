@@ -9,19 +9,19 @@ def test_feed_search_matches_the_article_body_not_only_the_title(
 ) -> None:
     """The requirement in one test.
 
-    "radiologists" appears in the body of an article whose title does not
+    "neuroplasticity" appears in the body of an article whose title does not
     contain the word. A title-only filter would return nothing here.
     """
-    response = client.get("/api/feed/articles?q=radiologists", headers=student_headers)
+    response = client.get("/api/feed/articles?q=neuroplasticity", headers=student_headers)
     assert response.status_code == 200, response.text
     results = response.json()
-    assert results, "expected at least one article whose body mentions radiologists"
-    assert any("radiologist" not in item["title"].lower() for item in results)
+    assert results, "expected at least one article whose body mentions neuroplasticity"
+    assert any("neuroplasticity" not in item["title"].lower() for item in results)
 
 
 def test_feed_search_is_case_insensitive(client: TestClient, student_headers: dict) -> None:
-    lower = client.get("/api/feed/articles?q=automation bias", headers=student_headers).json()
-    upper = client.get("/api/feed/articles?q=AUTOMATION BIAS", headers=student_headers).json()
+    lower = client.get("/api/feed/articles?q=immune system", headers=student_headers).json()
+    upper = client.get("/api/feed/articles?q=IMMUNE SYSTEM", headers=student_headers).json()
     assert [item["slug"] for item in lower] == [item["slug"] for item in upper]
     assert lower
 

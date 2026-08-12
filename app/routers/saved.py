@@ -37,6 +37,7 @@ class ResourceOut(BaseModel):
     premium: bool
     url: str
     video_url: str
+    orientation: str
     pdf_url: str
     cover_hue: int
     cover: str
@@ -155,6 +156,7 @@ def list_resources(
             premium=resource.premium,
             url=resource.url,
             video_url=resource.video_url,
+            orientation=resource.orientation,
             pdf_url=resource.pdf_url,
             cover_hue=resource.cover_hue,
             cover=resource.cover,

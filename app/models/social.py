@@ -96,6 +96,10 @@ class Resource(SQLModel, table=True):
     # Per-item destinations. Empty falls back to the shared demo asset in the
     # player/reader route, so swapping in a real URL is a data change.
     video_url: str = Field(default="")
+    # Videos only: how the source was shot. The player and the library card
+    # read this to frame the item at its own proportions instead of forcing
+    # every video into 16:9. landscape | portrait
+    orientation: str = Field(default="landscape", index=True)
     pdf_url: str = Field(default="")
     cover_hue: int = Field(default=210)
 
