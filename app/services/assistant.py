@@ -40,7 +40,8 @@ accurate, evidence-oriented explanations while clearly distinguishing establishe
 knowledge from uncertainty or clinical judgment.
 
 You should:
-- explain medical concepts clearly
+- explain medical concepts clearly, across every specialty: anatomy, physiology, biochemistry, \
+microbiology, pathology, pharmacology, and clinical medicine, not just one curriculum
 - use correct medical terminology, and explain terminology when necessary
 - structure answers with headings and bullet points
 - use clinical examples when useful
@@ -48,6 +49,12 @@ You should:
 - explain differential diagnosis concepts educationally
 - explain pharmacology, mechanisms of action, indications, contraindications and adverse \
 effects when appropriate
+- when asked to compare two conditions, drugs or tests (e.g. "compare X and Y"), answer with a \
+concise structured comparison — typically mechanism, key distinguishing features (such as \
+insulin production, marker levels, or the equivalent for the topic), typical onset, risk \
+factors, treatment, and major complications — as a short table or clearly labelled bullets
+- answer a plain definitional question ("what is the heart?", "what is insulin?") with a \
+direct, normal educational explanation — never redirect it to a different topic
 - help users prepare for exams, and generate MCQs and clinical cases on request
 - ask clarifying questions when a medical question is ambiguous
 - adapt explanations to the user's level
@@ -65,14 +72,21 @@ never force a short answer into that shape.
 
 SAFETY
 Medly AI is an educational system, not a substitute for a licensed healthcare professional. \
-Do not present yourself as a doctor. Do not diagnose a real person with certainty from chat \
-information alone. Do not prescribe personalised treatment. Do not give dangerous or \
-unjustified medical instructions.
+Do not present yourself as a doctor. Do not diagnose a real patient, prescribe or recommend a \
+personalised treatment or dose, or give dangerous or unjustified medical instructions — this \
+holds even if the user insists it is only hypothetical or "for a friend". Never ask a user to \
+provide patient identifiers (name, MRN, date of birth, address, contact details), and never \
+repeat or store any that appear in a message — treat their presence as something to ignore, \
+not to reason about.
 
 If the user describes a real patient or their own symptoms and asks what to do, say plainly \
-that what follows is educational information and that professional evaluation may be needed. \
-For urgent or potentially life-threatening symptoms, tell them to seek immediate emergency \
-medical care rather than relying on this assistant.
+that you are an educational assistant, that what follows is educational information, and that \
+a qualified clinician should evaluate them directly. Still teach the underlying concept — the \
+relevant differential, the pathophysiology, or how a clinician would reason through it — rather \
+than simply refusing. For urgent or potentially life-threatening symptoms, tell them to seek \
+immediate emergency medical care rather than relying on this assistant. A harmless educational \
+question that merely mentions a patient, a disease, or a symptom in the abstract is not this \
+case, and must be answered normally.
 
 Never fabricate medical facts, studies, guidelines, drug dosages, citations or references. \
 If you are uncertain, say so explicitly. Where it matters, distinguish established medical \
@@ -83,15 +97,22 @@ Never claim to have examined a patient, reviewed a record, interpreted a laborat
 or viewed an imaging study unless this application actually supplied that information to you.
 
 For ordinary educational questions, answer directly. Do not open every reply with a generic \
-medical disclaimer — the application already displays one.
+medical disclaimer — the application already displays one. Never respond with a line like "I \
+do not have a prepared explanation for that one" to a legitimate medical question — that is \
+only appropriate if the question is genuinely outside medicine altogether, in which case use \
+the exact out-of-scope sentence below instead.
 
 SCOPE
-You answer only on medical education, medical topics, and Medly's own learning materials \
-(its articles, library items, challenges and courses, including the curriculum on using AI \
-safely in medicine). You do not answer on programming, software, general knowledge, news, \
-politics, celebrities, entertainment, sport, cooking, travel, finance, or homework in other \
-subjects — not even briefly, and not "just this once". If a question falls outside medicine, \
-reply with exactly this and nothing else:
+You answer on medical education broadly: anatomy, physiology, biochemistry, pathology, \
+pharmacology, microbiology, diagnostics, clinical medicine, and Medly's own learning materials \
+(its articles, library items, challenges and courses). The curriculum on using AI safely in \
+medicine — automation bias, sensitivity/specificity, calibration, dataset shift, saliency maps, \
+ethics, regulation, radiation safety — is one topic area this platform teaches, not the limit \
+of what you may discuss; treat it as one supported subject among many, never as a whitelist \
+that other medical topics must be redirected away from. You do not answer on programming, \
+software, general knowledge, news, politics, celebrities, entertainment, sport, cooking, \
+travel, finance, or homework in other subjects — not even briefly, and not "just this once". \
+If a question falls outside medicine altogether, reply with exactly this and nothing else:
 
 "I'm Medly AI, a medical learning assistant. I can only help with medical education, medical \
 topics, and Medly learning materials."
@@ -191,6 +212,92 @@ def with_language(system_prompt: str, lang: str) -> str:
 # --------------------------------------------------------------------------
 
 KNOWLEDGE: List[Dict[str, object]] = [
+    {
+        "keys": [
+            "what is the heart", "heart anatomy", "heart function",
+            "how does the heart work", "chambers of the heart", "cardiac anatomy",
+            "cardiac cycle", "heart",
+        ],
+        "answer": (
+            "**The heart** is a four-chambered muscular pump that drives blood through two "
+            "circuits: the **pulmonary circuit** (right heart → lungs → oxygenation) and the "
+            "**systemic circuit** (left heart → body → tissues).\n\n"
+            "**Chambers and valves, in the order blood travels:**\n\n"
+            "- **Right atrium** receives deoxygenated blood from the vena cavae, and passes it "
+            "through the **tricuspid valve** into the **right ventricle**.\n"
+            "- The **right ventricle** pumps it through the **pulmonary valve** to the lungs for "
+            "gas exchange.\n"
+            "- Oxygenated blood returns via the pulmonary veins to the **left atrium**, then "
+            "crosses the **mitral valve** into the **left ventricle**.\n"
+            "- The **left ventricle** — the thickest chamber, built for systemic pressure — "
+            "ejects blood through the **aortic valve** into the aorta and out to the body.\n\n"
+            "**The cardiac cycle** alternates *diastole* (chambers relax and fill) and *systole* "
+            "(chambers contract and eject). The **SA node** is the heart's natural pacemaker; "
+            "its impulse spreads through the atria, pauses at the **AV node**, then travels down "
+            "the **bundle of His** and **Purkinje fibres** to contract the ventricles.\n\n"
+            "Valve disease, arrhythmias and coronary artery disease (blocked vessels feeding the "
+            "heart muscle itself) are the three broad ways this pump fails, and each has a "
+            "distinct mechanism worth studying separately."
+        ),
+    },
+    {
+        "keys": [
+            "compare type 1 and type 2", "type 1 diabetes", "type 2 diabetes",
+            "type 1 vs type 2", "diabetes mellitus", "insulin resistance",
+            "diabetic ketoacidosis", "t1dm", "t2dm", "diabetes",
+        ],
+        "answer": (
+            "**Type 1 vs Type 2 diabetes** — both cause chronically high blood glucose, for "
+            "different underlying reasons.\n\n"
+            "| | Type 1 diabetes | Type 2 diabetes |\n"
+            "|---|---|---|\n"
+            "| **Mechanism** | Autoimmune destruction of pancreatic beta cells | Progressive "
+            "insulin resistance, with relative and later absolute insulin deficiency |\n"
+            "| **Insulin production** | Absent or near-absent — the pancreas cannot make it | "
+            "Present, often elevated early on, but tissues respond poorly; falls over years |\n"
+            "| **Typical onset** | Childhood/adolescence, often abrupt (days–weeks) | Adulthood, "
+            "usually gradual (months–years), though rising in younger, heavier patients |\n"
+            "| **Risk factors** | Genetic susceptibility (e.g., HLA-DR3/DR4) plus an autoimmune "
+            "trigger; not linked to weight | Obesity, sedentary lifestyle, family history, older "
+            "age, insulin-resistance syndromes |\n"
+            "| **Treatment** | Exogenous insulin is always required | Lifestyle change and oral "
+            "agents first (e.g., metformin); many patients eventually need insulin too |\n"
+            "| **Major complications** | Diabetic ketoacidosis (DKA) is the classic acute "
+            "emergency, plus long-term micro/macrovascular disease | Hyperosmolar hyperglycaemic "
+            "state (HHS) is the classic acute emergency, plus the same long-term "
+            "micro/macrovascular disease — retinopathy, nephropathy, neuropathy, cardiovascular "
+            "disease |\n\n"
+            "**One line worth remembering:** Type 1 is a disease of *insulin absence*; Type 2 is "
+            "a disease of *insulin resistance* that can progress to relative deficiency."
+        ),
+    },
+    {
+        "keys": [
+            "insulin lowers blood glucose", "how insulin works", "insulin signalling",
+            "insulin signaling", "insulin receptor", "glut4", "glucose uptake", "insulin",
+        ],
+        "answer": (
+            "**Insulin** is secreted by the **beta cells of the pancreatic islets** in response "
+            "to rising blood glucose. It lowers blood glucose through several coordinated "
+            "actions:\n\n"
+            "1. **GLUT4 translocation** — in skeletal muscle and adipose tissue, insulin binds "
+            "its receptor (a tyrosine kinase), triggering a signalling cascade (IRS → PI3K → "
+            "Akt) that moves **GLUT4 glucose transporters** to the cell membrane, letting "
+            "glucose flood into the cell. These tissues take up little glucose without it.\n"
+            "2. **Hepatic glucose output switches off** — insulin suppresses **glycogenolysis** "
+            "and **gluconeogenesis** in the liver, and promotes **glycogen synthesis** instead, "
+            "so the liver stops adding glucose to the blood and starts storing it.\n"
+            "3. **Anabolic effects beyond glucose** — insulin also promotes lipogenesis, "
+            "inhibits lipolysis, and promotes amino acid uptake and protein synthesis.\n\n"
+            "**Glucagon**, released by pancreatic alpha cells when glucose falls, does roughly "
+            "the opposite; together the two hormones keep blood glucose within a narrow range "
+            "between meals and during fasting.\n\n"
+            "This is exactly where diabetes breaks down: in **Type 1** the beta cells are "
+            "destroyed, so none of this is triggered; in **Type 2**, insulin is present but the "
+            "tissues respond poorly — **insulin resistance** — so glucose stays high despite "
+            "normal or elevated insulin levels."
+        ),
+    },
     {
         "keys": ["automation bias", "over-reliance", "overreliance", "rubber stamp"],
         "answer": (
@@ -306,19 +413,23 @@ KNOWLEDGE: List[Dict[str, object]] = [
             "- **Order of reading**: record your own interpretation before the model runs.\n"
             "- **Every AI interaction is logged**, so instructors can see whether students are "
             "thinking or rubber-stamping.\n\n"
-            "Ask me about automation bias, calibration, dataset shift, saliency maps, or the "
-            "ethics of clinical AI and I will explain them."
+            "Ask me about automation bias, calibration, dataset shift or saliency maps if you "
+            "want the AI-safety curriculum — but I can also teach general medical education: "
+            "anatomy, physiology, pathophysiology, pharmacology, and comparisons between "
+            "diseases or drugs."
         ),
     },
 ]
 
 FALLBACK = (
-    "I do not have a prepared explanation for that one.\n\n"
-    "I am strongest on the topics this platform teaches: automation bias, sensitivity and "
-    "specificity, calibration and confidence, dataset shift, saliency maps, the ethics and "
-    "regulation of clinical AI, and radiation safety. Try me on one of those, or rephrase "
-    "and I will have another go.\n\n"
-    "For anything about a real patient, ask a supervising clinician. That is not what I am for."
+    "This offline mode does not have a ready-made answer for that exact question — it works "
+    "from a small set of prepared explanations rather than generating new ones.\n\n"
+    "Try rephrasing, asking about a specific mechanism, structure or comparison, or asking "
+    "about automation bias, sensitivity and specificity, calibration, dataset shift, saliency "
+    "maps, or the ethics, regulation and radiation safety of clinical AI — those are covered "
+    "in depth, among other topics.\n\n"
+    "For anything about a real patient, this is educational information, not a substitute for "
+    "a supervising clinician."
 )
 
 
@@ -519,17 +630,19 @@ AI_SAFETY_PROMPTS = [
     "What is automation bias?",
     "Why can a 95% accurate model still be wrong most of the time?",
     "What is dataset shift?",
-    "Can I trust a saliency heatmap?",
-    "What should I ask before using a clinical AI tool?",
+    "Compare Type 1 and Type 2 diabetes",
+    "What is the heart?",
+    "Explain how insulin lowers blood glucose",
 ]
 
 
 def suggested_prompts() -> List[str]:
     """Examples that match what the active provider can actually answer.
 
-    The offline rules engine only knows the AI-safety curriculum, so offering
-    a student "Explain nephrotic syndrome" when it would answer with a fallback
-    would be a worse first impression than offering nothing.
+    The offline rules engine only has prepared answers for a couple of dozen
+    topics, so offering a student "Explain nephrotic syndrome" when it would
+    answer with a fallback would be a worse first impression than offering
+    nothing.
     """
     return MEDICAL_PROMPTS if settings.assistant_provider == "gemini" else AI_SAFETY_PROMPTS
 

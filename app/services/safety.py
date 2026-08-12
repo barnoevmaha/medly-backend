@@ -27,7 +27,8 @@ from app.models.enums import RiskLevel
 
 # Asking the tool to make the call on a real, present patient.
 CLINICAL_DIRECTIVE_PATTERNS: List[Tuple[str, str]] = [
-    (r"\b(?:my|our|this|the)\s+patient\b", "Request concerns a real patient"),
+    (r"\b(?:my|our|this|the)\s+(?:real\s+)?patient\b", "Request concerns a real patient"),
+    (r"\breal\s+patient\b", "Request concerns a real patient"),
     (r"\bshould\s+(?:i|we)\s+(?:prescribe|administer|give|start|stop|discharge|operate)\b",
      "Request asks for a treatment decision"),
     (r"\b(?:what|which)\s+(?:dose|dosage)\b", "Request asks for a dosing decision"),
@@ -35,6 +36,9 @@ CLINICAL_DIRECTIVE_PATTERNS: List[Tuple[str, str]] = [
      "Request asks for a definitive diagnosis"),
     (r"\bdiagnos(?:e|is)\s+(?:this|my|the)\s+(?:patient|scan|x-?ray|ct)\b",
      "Request asks for a definitive diagnosis"),
+    (r"\bwhat\s+diagnosis\b", "Request asks for a definitive diagnosis"),
+    (r"\b(?:what's|what\s+is)\s+the\s+diagnosis\b", "Request asks for a definitive diagnosis"),
+    (r"\btell me (?:the |what )?diagnosis\b", "Request asks for a definitive diagnosis"),
     (r"\bcan\s+(?:i|we)\s+discharge\b", "Request asks for a disposition decision"),
 ]
 
@@ -124,9 +128,12 @@ def screen_message(text: str) -> SafetyVerdict:
             reasons=clinical,
             redacted_text=redact(text),
             refusal_message=(
-                "I am a teaching assistant, not a clinical decision tool, so I will not "
-                "answer that as asked. I can explain the reasoning, the evidence, or how "
-                "a clinician would work through it. Ask me the concept and I will teach it."
+                "I'm Medly AI, an educational assistant — I can't diagnose, treat or make "
+                "a care decision for a real patient. Please have a qualified clinician "
+                "evaluate this person directly. I can still teach the underlying concept: "
+                "the differential diagnosis approach, the pathophysiology, or how a "
+                "clinician would reason through a case like this. Ask me that and I will "
+                "explain it."
             ),
         )
 
