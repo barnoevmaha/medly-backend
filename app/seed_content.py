@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta
-from typing import List
+from typing import Dict, List
 
 from sqlmodel import Session, select
 
@@ -791,12 +791,52 @@ def _seed_resources(session: Session) -> None:
     session.commit()
 
 
+# Curated cover art, supplied for these items specifically and keyed by slug.
+# A slug that is absent here falls back to the authored SVG of the same name.
+#
+# These are the authoritative images for their items. Nothing automatic may
+# replace them: the stock-image service is not wired to communities or
+# challenges at all, and if it ever is, it must treat a non-empty `cover` as a
+# curated image and leave it alone.
+COMMUNITY_COVERS: Dict[str, str] = {
+    "cardiology-club": "/covers/communities/cardiology-club.jpg",
+    "radiology-residents": "/covers/communities/radiology-residents.jpg",
+    "surgery-society": "/covers/communities/surgery-society.jpg",
+    "emergency-medicine": "/covers/communities/emergency-medicine.jpg",
+    "pediatrics-pals": "/covers/communities/pediatrics-pals.jpg",
+    "internal-medicine": "/covers/communities/internal-medicine.jpg",
+    "ai-in-medicine": "/covers/communities/ai-in-medicine.jpg",
+    # neurology-network has no supplied image and keeps its authored SVG.
+}
+
+CHALLENGE_COVERS: Dict[str, str] = {
+    "ai-in-medical-imaging": "/covers/challenges/ai-in-medical-imaging.jpg",
+    "cardiology-grand-challenge": "/covers/challenges/cardiology-grand-challenge.jpg",
+    "anatomy-speed-quiz": "/covers/challenges/anatomy-speed-quiz.jpg",
+    "pharmacology-master": "/covers/challenges/pharmacology-master.jpg",
+}
+
+
+def _cover_for(group: str, slug: str, curated: Dict[str, str]) -> str:
+    return curated.get(slug, f"/covers/{group}/{slug}.svg")
+
+
 def _seed_communities(session: Session) -> None:
     for spec in COMMUNITIES:
         community = session.exec(
             select(Community).where(Community.slug == spec["slug"])
         ).first()
+        cover = _cover_for("communities", str(spec["slug"]), COMMUNITY_COVERS)
         if community:
+            # Cover art is refreshed even on a row that already exists. It is
+            # presentation rather than user data, and a database seeded before
+            # the artwork landed would otherwise keep pointing at a file that
+            # is no longer there — which is exactly how four of these ended up
+            # requesting an SVG that was never drawn.
+            if community.cover != cover:
+                community.cover = cover
+                session.add(community)
+                session.commit()
             continue
         community = Community(
             slug=str(spec["slug"]),
@@ -804,7 +844,7 @@ def _seed_communities(session: Session) -> None:
             description=str(spec["description"]),
             specialty=str(spec["specialty"]),
             icon=str(spec["icon"]),
-            cover=f"/covers/communities/{spec['slug']}.svg",
+            cover=cover,
             base_members=int(spec["base_members"]),
         )
         session.add(community)
@@ -828,7 +868,15 @@ def _seed_communities(session: Session) -> None:
 
 def _seed_challenges(session: Session) -> None:
     for spec in CHALLENGES:
-        if session.exec(select(Challenge).where(Challenge.slug == spec["slug"])).first():
+        cover = _cover_for("challenges", str(spec["slug"]), CHALLENGE_COVERS)
+        existing = session.exec(
+            select(Challenge).where(Challenge.slug == spec["slug"])
+        ).first()
+        if existing:
+            if existing.cover != cover:
+                existing.cover = cover
+                session.add(existing)
+                session.commit()
             continue
         questions = spec["questions"]
         assert isinstance(questions, list)
@@ -840,7 +888,7 @@ def _seed_challenges(session: Session) -> None:
             description=str(spec["description"]),
             topic=str(spec["topic"]),
             icon=str(spec["icon"]),
-            cover=f"/covers/challenges/{spec['slug']}.svg",
+            cover=cover,
             difficulty=str(spec["difficulty"]),
             points=per_question * len(questions),
             base_participants=int(spec["base_participants"]),
