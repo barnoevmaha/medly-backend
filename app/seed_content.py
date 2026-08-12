@@ -806,7 +806,7 @@ COMMUNITY_COVERS: Dict[str, str] = {
     "pediatrics-pals": "/covers/communities/pediatrics-pals.jpg",
     "internal-medicine": "/covers/communities/internal-medicine.jpg",
     "ai-in-medicine": "/covers/communities/ai-in-medicine.jpg",
-    # neurology-network has no supplied image and keeps its authored SVG.
+    "neurology-network": "/covers/communities/neurology-network.jpg",
 }
 
 CHALLENGE_COVERS: Dict[str, str] = {
