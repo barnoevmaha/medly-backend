@@ -171,6 +171,19 @@ MEDICAL = _words(
         "malnutrition", "pregnancy", "fever", "pain", "oedema", "edema",
         "insulin resistance", "thyroid", "adrenal", "pituitary",
     ),
+    # reproductive biology, genetics and sexual health
+    (
+        "sex", "biological sex", "sex chromosome", "sex chromosomes",
+        "x chromosome", "y chromosome", "sex hormone", "sex hormones",
+        "estrogen", "oestrogen", "testosterone", "progesterone", "puberty",
+        "gonad", "gonads", "ovary", "ovaries", "testis", "testes", "uterus",
+        "ovulation", "menstrual", "menstruation", "menopause", "gamete",
+        "sperm", "fertilisation", "fertilization", "reproductive system",
+        "reproductive health", "sexual development", "sex differentiation",
+        "intersex", "sexually transmitted", "chlamydia", "gonorrhoea",
+        "gonorrhea", "syphilis", "contraception", "contraceptive", "libido",
+        "erectile", "fertility", "infertility",
+    ),
     # investigations
     (
         "ecg", "ekg", "eeg", "mri", "ct scan", "x-ray", "xray", "ultrasound",
@@ -203,6 +216,7 @@ MEDICAL = _words(
         "aki", "ckd", "mi", "stemi", "nstemi", "chf", "copd", "dvt", "pe",
         "uti", "gi", "cns", "cvs", "dka", "hba1c", "bmi", "gfr", "lft", "fbc",
         "cbc", "abg", "crp", "esr", "tia", "ards", "sirs", "raas", "hpa",
+        "sti", "std", "hiv", "hpv",
     ),
     # studying
     (

@@ -299,6 +299,32 @@ KNOWLEDGE: List[Dict[str, object]] = [
         ),
     },
     {
+        "keys": [
+            "what is sex", "what is biological sex", "biological sex", "sex chromosome",
+            "sex chromosomes", "sex determination", "sex differentiation", "sry gene",
+            "sex hormone", "sex hormones", "sex",
+        ],
+        "answer": (
+            "**Biological sex** is determined and expressed at several levels, which usually "
+            "line up but can be studied separately:\n\n"
+            "- **Chromosomal sex** — typically **XX** (female) or **XY** (male). The **SRY "
+            "gene** on the Y chromosome triggers testis development in the embryo; without it, "
+            "the default developmental pathway is ovarian.\n"
+            "- **Gonadal sex** — the gonads that form as a result: **testes** or **ovaries**.\n"
+            "- **Hormonal sex** — the gonads secrete the hormones (mainly **testosterone** or "
+            "**oestrogen/progesterone**) that drive the development of internal and external "
+            "reproductive structures, and later, secondary sexual characteristics at puberty.\n"
+            "- **Phenotypic sex** — the resulting anatomy: internal reproductive organs and "
+            "external genitalia.\n\n"
+            "These layers can diverge — for example in intersex conditions, where chromosomal, "
+            "gonadal and phenotypic sex do not all align — which is exactly why clinicians "
+            "distinguish them rather than treating \"sex\" as a single variable.\n\n"
+            "**Sex is not the same as gender**: sex refers to these biological characteristics; "
+            "gender refers to a person's identity and social role, which is a separate concept "
+            "worth not conflating in a clinical or research context."
+        ),
+    },
+    {
         "keys": ["automation bias", "over-reliance", "overreliance", "rubber stamp"],
         "answer": (
             "**Automation bias** is the tendency to accept a machine's suggestion even "
