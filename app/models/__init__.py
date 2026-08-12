@@ -18,9 +18,11 @@ from app.models.enums import (
     EventType,
     LessonKind,
     Modality,
+    PatientState,
     ProgressStatus,
     RiskLevel,
     Role,
+    SessionStatus,
 )
 from app.models.quiz import Choice, Question, Quiz, QuizAttempt
 from app.models.social import (
@@ -31,6 +33,13 @@ from app.models.social import (
     SavedItem,
 )
 from app.models.user import User
+from app.models.virtual_patient import (
+    VirtualPatientCase,
+    VirtualPatientDecision,
+    VirtualPatientOption,
+    VirtualPatientSession,
+    VirtualPatientStage,
+)
 
 __all__ = [
     "AnalysisJob",
@@ -59,6 +68,7 @@ __all__ = [
     "LessonKind",
     "LessonProgress",
     "Modality",
+    "PatientState",
     "ProgressStatus",
     "Question",
     "Quiz",
@@ -67,6 +77,12 @@ __all__ = [
     "RiskLevel",
     "Role",
     "SavedItem",
+    "SessionStatus",
     "User",
     "UserBadge",
+    "VirtualPatientCase",
+    "VirtualPatientDecision",
+    "VirtualPatientOption",
+    "VirtualPatientSession",
+    "VirtualPatientStage",
 ]

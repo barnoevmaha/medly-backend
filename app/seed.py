@@ -9,7 +9,7 @@ from typing import List
 
 from sqlmodel import Session, select
 
-from app import seed_content
+from app import seed_content, seed_virtual_patient
 from app.db import engine, init_db
 from app.models.audit import AuditEvent
 from app.models.course import Course, Enrollment, Lesson, LessonProgress
@@ -906,6 +906,7 @@ def run() -> None:
         # Product content: feed, library, communities, challenges, casebook.
         seed_content.run(session, users, hash_password(DEMO_PASSWORD))
         _seed_memberships(session, users)
+        seed_virtual_patient.run(session)
 
     print("Seed complete.")
     print(f"  student@medly.dev    / {DEMO_PASSWORD}   (free student)")

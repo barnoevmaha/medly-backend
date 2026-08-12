@@ -19,6 +19,28 @@ class RiskLevel(str, Enum):
     HIGH = "high"
 
 
+class PatientState(str, Enum):
+    """How the virtual patient is doing. Only the game engine sets this."""
+
+    STABLE = "stable"
+    IMPROVING = "improving"
+    DETERIORATING = "deteriorating"
+    CRITICAL = "critical"
+    RECOVERED = "recovered"
+    FAILED = "failed"
+
+    @property
+    def is_terminal(self) -> bool:
+        return self in (PatientState.RECOVERED, PatientState.FAILED)
+
+
+class SessionStatus(str, Enum):
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    ABANDONED = "abandoned"
+
+
 class EventType(str, Enum):
     ASSISTANT_QUERY = "assistant_query"
     ASSISTANT_BLOCKED = "assistant_blocked"
@@ -29,6 +51,9 @@ class EventType(str, Enum):
     QUIZ_SUBMITTED = "quiz_submitted"
     CERTIFICATION_EARNED = "certification_earned"
     LESSON_COMPLETED = "lesson_completed"
+    VP_SESSION_STARTED = "vp_session_started"
+    VP_DECISION_MADE = "vp_decision_made"
+    VP_SESSION_COMPLETED = "vp_session_completed"
 
 
 class LessonKind(str, Enum):

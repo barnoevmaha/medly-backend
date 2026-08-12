@@ -140,6 +140,41 @@ def _extract_text(payload: dict) -> tuple[str, str]:
     return text, finish
 
 
+@dataclass(frozen=True)
+class Credentials:
+    """Which key, model and timeout a call should use.
+
+    Defaults to the assistant's. Virtual Patient passes its own, so the two
+    features can sit on separate keys and quotas without a second HTTP client
+    or a second copy of the error handling.
+    """
+
+    api_key: str
+    model: str
+    timeout_seconds: float
+    base_url: str
+
+
+def assistant_credentials() -> Credentials:
+    return Credentials(
+        api_key=settings.gemini_api_key,
+        model=settings.gemini_model,
+        timeout_seconds=settings.gemini_timeout_seconds,
+        base_url=settings.gemini_base_url,
+    )
+
+
+def virtual_patient_credentials() -> Credentials:
+    # Falling back to the assistant key keeps one-project deployments working
+    # with a single secret; set the VP key to split them.
+    return Credentials(
+        api_key=settings.vp_gemini_api_key or settings.gemini_api_key,
+        model=settings.vp_gemini_model,
+        timeout_seconds=settings.vp_gemini_timeout_seconds,
+        base_url=settings.gemini_base_url,
+    )
+
+
 def _build_request(
     system_prompt: str,
     history: List[Dict[str, str]],
@@ -314,6 +349,7 @@ def generate(
     message: str,
     max_output_tokens: Optional[int] = None,
     temperature: float = 0.4,
+    credentials: Optional[Credentials] = None,
 ) -> GeminiResult:
     """One turn against Gemini. Raises a `GeminiError` subclass on any failure.
 
@@ -321,10 +357,11 @@ def generate(
     chronological order; it is converted to Gemini's `user`/`model` roles here
     so callers do not have to know the wire format.
     """
-    if not settings.gemini_api_key:
-        raise GeminiNotConfigured("GEMINI_API_KEY is not set")
+    creds = credentials or assistant_credentials()
+    if not creds.api_key:
+        raise GeminiNotConfigured("No Gemini API key is configured for this feature")
 
-    model = settings.gemini_model
+    model = creds.model
     contents = [
         {
             "role": "model" if turn.get("role") == "assistant" else "user",
@@ -350,8 +387,8 @@ def generate(
         "contents": contents,
         "generationConfig": generation_config,
     }
-    url = f"{settings.gemini_base_url}/models/{model}:generateContent"
-    headers = {"x-goog-api-key": settings.gemini_api_key, "Content-Type": "application/json"}
+    url = f"{creds.base_url}/models/{model}:generateContent"
+    headers = {"x-goog-api-key": creds.api_key, "Content-Type": "application/json"}
 
     started = time.monotonic()
     last_error: Optional[GeminiError] = None
@@ -362,7 +399,7 @@ def generate(
                 "gemini request start model=%s attempt=%d turns=%d",
                 model, attempt + 1, len(contents),
             )
-            with httpx.Client(timeout=settings.gemini_timeout_seconds) as client:
+            with httpx.Client(timeout=creds.timeout_seconds) as client:
                 response = client.post(url, json=body, headers=headers)
 
             if response.status_code in RETRY_STATUS and attempt < MAX_ATTEMPTS - 1:

@@ -45,6 +45,7 @@ from app.routers import (
     profile,
     quizzes,
     saved,
+    virtual_patient,
 )
 
 
@@ -94,6 +95,7 @@ app.include_router(communities.router)
 app.include_router(challenges.router)
 app.include_router(casebook.router)
 app.include_router(profile.router)
+app.include_router(virtual_patient.router)
 
 
 @app.get("/api/health", tags=["meta"])

@@ -73,6 +73,23 @@ class Settings:
     # SSE client, so this is invisible. Set to 0 to disable.
     sse_preamble_bytes: int = int(os.getenv("MEDLY_SSE_PREAMBLE_BYTES", "2048"))
 
+    # --- Virtual Patient -----------------------------------------------
+    # Its own credentials so the simulator can be pointed at a different key,
+    # project or quota than the assistant, and so exhausting one does not take
+    # the other down. Empty falls back to the assistant's key, which is what
+    # you want in development and for a single-project deployment.
+    vp_gemini_api_key: str = os.getenv("VIRTUAL_PATIENT_GEMINI_API_KEY", "")
+    vp_gemini_model: str = os.getenv("VIRTUAL_PATIENT_GEMINI_MODEL", "gemini-3.5-flash")
+    vp_gemini_timeout_seconds: float = float(
+        os.getenv("VIRTUAL_PATIENT_GEMINI_TIMEOUT_SECONDS", "30")
+    )
+    # Patient dialogue is a couple of sentences; a large ceiling here would
+    # only pay for a monologue nobody asked for.
+    vp_max_output_tokens: int = int(os.getenv("VIRTUAL_PATIENT_MAX_OUTPUT_TOKENS", "400"))
+    vp_debrief_max_output_tokens: int = int(
+        os.getenv("VIRTUAL_PATIENT_DEBRIEF_MAX_OUTPUT_TOKENS", "1200")
+    )
+
     # Timestamped per-stage stream logging, and the /debug-stream probe.
     # Off unless explicitly enabled.
     stream_debug: bool = os.getenv("MEDLY_STREAM_DEBUG", "false").lower() in {"1", "true", "yes"}
