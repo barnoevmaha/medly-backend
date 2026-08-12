@@ -1,10 +1,63 @@
-"""Runtime configuration, read once from the environment."""
+"""Runtime configuration, read once from the environment.
+
+`.env` is read into the environment before `Settings` is built. Every field
+below calls `os.getenv` as its default, and dataclass defaults are evaluated
+once when the class is defined — so anything that is going to set a variable
+has to have done it by the time this module finishes importing. That is why
+the loader is a module-level call and not something the app does at startup.
+"""
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
 from functools import lru_cache
+from pathlib import Path
 from typing import List
+
+# backend/.env — sits next to requirements.txt, two levels up from this file.
+_ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+
+
+def _load_env_file(path: Path = _ENV_FILE) -> None:
+    """Fill in missing environment variables from a local `.env`.
+
+    Hand-rolled rather than pulling in python-dotenv: it is a dozen lines of
+    standard library, this is the only module that needs it, and the project
+    already prefers a small amount of its own code over a dependency to pin
+    and keep current (see the note about the Gemini SDK in requirements.txt).
+
+    A real environment variable always wins. Railway, Vercel and
+    `docker compose` set theirs for real, and a stale local `.env` must never
+    silently override a deployment. A missing or unreadable file is a normal
+    state — production has no `.env` at all — so it is not an error.
+
+    Values are never logged. This function is the only thing that reads the
+    file, and it writes straight into `os.environ`.
+    """
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return
+
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export ") :].lstrip()
+        name, separator, value = line.partition("=")
+        name = name.strip()
+        # No "=" is not a variable; already set means the real environment
+        # has spoken and this line is ignored.
+        if not separator or not name or name in os.environ:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+            value = value[1:-1]
+        os.environ[name] = value
+
+
+_load_env_file()
 
 
 def _split(value: str) -> List[str]:
@@ -53,6 +106,12 @@ class Settings:
     # --- Gemini ------------------------------------------------------------
     # Server-side only. The key is never sent to the browser: the frontend
     # talks to /api/assistant/chat, and this process talks to Google.
+    # Stock imagery. Server-side only — this value is never placed on a
+    # response model, so it cannot reach the browser. Unset is a supported
+    # state: lookups are skipped and callers keep their existing image.
+    pexels_api_key: str = os.getenv("PEXELS_API_KEY", "")
+    pexels_timeout_seconds: float = float(os.getenv("PEXELS_TIMEOUT_SECONDS", "10"))
+
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
     gemini_base_url: str = os.getenv(

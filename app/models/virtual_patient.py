@@ -81,6 +81,22 @@ class VirtualPatientCase(SQLModel, table=True):
 
     icon: str = Field(default="stethoscope")
     cover: str = Field(default="")
+
+    # Optional stock photograph for the scenario, cached exactly as an article's
+    # is. Nothing populates these automatically: the authored Lottie art and the
+    # drawn avatar remain the default, because a stock photo of a stranger
+    # standing in for a named patient is a worse illustration, not a better one.
+    # `app.services.stock_images.get_stock_image` fills them when asked.
+    image_provider: str = Field(default="")
+    image_provider_id: str = Field(default="")
+    image_url: str = Field(default="")
+    image_source_url: str = Field(default="")
+    image_photographer: str = Field(default="")
+    image_photographer_url: str = Field(default="")
+    image_width: int = Field(default=0)
+    image_height: int = Field(default=0)
+    image_orientation: str = Field(default="")
+    image_alt: str = Field(default="")
     order: int = Field(default=0)
     published: bool = Field(default=True)
     created_by: Optional[int] = None

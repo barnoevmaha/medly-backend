@@ -185,6 +185,11 @@ class StageOut(BaseModel):
 class SessionOut(BaseModel):
     session_id: int
     case_slug: str
+    # Enough of the patient to draw them: the figure needs the scenario's
+    # artwork and the age, or a 74-year-old is rendered as a young adult.
+    patient_age: int = 0
+    patient_sex: str = ""
+    cover: str = ""
     status: str
     patient_state: str
     vitals: Dict[str, object]
@@ -322,6 +327,9 @@ def _session_out(
         session_id=run.id or 0,
         disclaimer=_disclaimer(lang),
         case_slug=case.slug,
+        patient_age=case.patient_age,
+        patient_sex=case.patient_sex,
+        cover=case.cover,
         status=run.status,
         patient_state=run.patient_state,
         vitals=engine.parse_vitals(run.vitals_json),

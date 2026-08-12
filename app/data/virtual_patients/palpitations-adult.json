@@ -1,0 +1,197 @@
+{
+  "schema": 1,
+  "case": {
+    "slug": "palpitations-adult",
+    "title": "It's probably just stress",
+    "summary": "A 34-year-old woman is sent from her office with a racing heart and chest tightness. Everyone around her has already decided it is anxiety. Decide for yourself.",
+    "specialty": "Emergency medicine",
+    "difficulty": "medium",
+    "estimated_minutes": 12,
+    "patient_name": "Amelia Kovač",
+    "patient_age": 34,
+    "patient_sex": "female",
+    "presenting_complaint": "Palpitations and chest tightness at work",
+    "patient_brief": "You are Amelia Kovač, 34, a project manager. For about an hour your heart has been racing — a fast, regular pounding that started suddenly while you were sitting at your desk. Your chest feels tight and you are short of breath. You feel light-headed but you have not fainted. This has happened twice before, briefly, and stopped on its own; a GP told you it was stress. You have been working long hours and sleeping badly. You take the combined oral contraceptive pill. You flew back from a conference four days ago. You do not smoke. You are frightened but you are also embarrassed, and you keep saying you are sure it is nothing.",
+    "opening_vitals": {
+      "hr": 186,
+      "bp": "104/68",
+      "rr": 22,
+      "spo2": 98,
+      "temp": 36.8
+    },
+    "first_stage_key": "triage",
+    "correct_diagnosis": "Supraventricular tachycardia (AV nodal re-entrant tachycardia), terminated by vagal manoeuvre",
+    "learning_objectives": "Resist the anxiety anchor in a young woman with cardiorespiratory symptoms; get an ECG before a diagnosis; take a structured pulmonary embolism risk history including hormonal contraception and recent travel; treat SVT in the correct escalating order.",
+    "debrief_md": "## The anchor\n\nThe referral said anxiety. Her GP said stress. She said it herself. Everything in the room pointed one way — and a heart rate of 186 does not care what the referral says.\n\nYoung women with cardiorespiratory symptoms are more likely than men to have those symptoms attributed to anxiety, and the misattribution is well documented. The defence is procedural rather than intellectual: in a patient with palpitations, the ECG happens before the diagnosis does.\n\n## Two things could kill her\n\nBoth were live on the history. She is on the combined pill and flew four days ago — that is a pulmonary embolism until it is reasoned away. And the rhythm itself was a regular narrow-complex tachycardia at 186.\n\nAnxiety is a diagnosis of exclusion here, not a starting point.\n\n## Treating the SVT\n\nVagal manoeuvres first — the modified Valsalva is markedly more effective than the standard one. Adenosine if that fails, with the patient warned about the awful few seconds it produces. Synchronised cardioversion if she becomes unstable. She was not unstable: her blood pressure was maintained and she was alert.",
+    "pass_ratio": 0.6,
+    "icon": "heart",
+    "cover": "/lottie/woman-stress.json",
+    "order": 2
+  },
+  "stages": [
+    {
+      "key": "triage",
+      "kind": "intro",
+      "title": "Triage",
+      "narrative": "Amelia arrives at 15:10, walked in by a colleague. The triage note reads: 'Panic attack at work — hyperventilating, known stress.' She is pale and sitting very still. The monitor shows a regular narrow-complex tachycardia at 186.",
+      "patient_line": "I'm so sorry to waste your time. I think I just got worked up about a deadline. It'll pass.",
+      "clinical_note": "HR 186 regular. BP 104/68. Alert, speaking in full sentences. Peripherally cool.",
+      "vitals": {
+        "hr": 186,
+        "bp": "104/68",
+        "rr": 22,
+        "spo2": 98,
+        "temp": 36.8
+      },
+      "prompt": "How do you open?",
+      "options": [
+        {
+          "key": "ecg_now",
+          "label": "Twelve-lead ECG and IV access now",
+          "detail": "Rhythm first, story second.",
+          "is_correct": true,
+          "score_delta": 20,
+          "next_stage_key": "history",
+          "feedback": "Correct. A regular narrow-complex tachycardia at 186 is a rhythm to be characterised, not a mood to be discussed. The ECG costs ninety seconds."
+        },
+        {
+          "key": "reassure",
+          "label": "Reassure her and coach her breathing",
+          "detail": "Calm her down and see if the rate settles.",
+          "is_correct": false,
+          "score_delta": 0,
+          "next_stage_key": "history",
+          "feedback": "The triage note has done your thinking for you. Anxiety does not usually hold a rate of 186 regular, and you have not looked at the rhythm yet.",
+          "is_harmful": true
+        },
+        {
+          "key": "bloods",
+          "label": "Send bloods and wait",
+          "detail": "FBC, U&E, TFTs, troponin, D-dimer.",
+          "is_correct": false,
+          "score_delta": 5,
+          "next_stage_key": "history",
+          "feedback": "Thyroid function and a D-dimer may well earn their place later, but none of them changes what you do in the next five minutes. The ECG does."
+        }
+      ]
+    },
+    {
+      "key": "history",
+      "kind": "history",
+      "title": "History",
+      "narrative": "Sudden onset an hour ago at rest. Regular, fast, pounding. Chest tightness and breathlessness, light-headed but no syncope. Two similar shorter episodes over the past year, both self-terminating.\n\nShe takes the combined oral contraceptive pill. She flew home from a conference four days ago — a five-hour flight. No calf pain or swelling. No fever. No cough. Non-smoker. No family history of sudden death.\n\nChest is clear. Heart sounds are fast and regular. Calves are soft and equal.",
+      "patient_line": "It started out of nowhere. I was just sitting there. It's happened before and everyone said it was stress, so I didn't come in.",
+      "clinical_note": "Sudden onset at rest. On combined oral contraceptive. Long-haul flight four days ago. Calves normal.",
+      "vitals": {
+        "hr": 184,
+        "bp": "106/70",
+        "rr": 22,
+        "spo2": 98,
+        "temp": 36.8
+      },
+      "prompt": "Two of these need actively excluding today. Which pair?",
+      "options": [
+        {
+          "key": "svt_pe",
+          "label": "Supraventricular tachycardia, and pulmonary embolism",
+          "detail": "The rhythm in front of you, and the risk factors in her history.",
+          "is_correct": true,
+          "score_delta": 25,
+          "next_stage_key": "ecg",
+          "feedback": "Correct. The rhythm needs characterising and treating; the pill plus recent long-haul flight puts PE firmly on the list. Both are live."
+        },
+        {
+          "key": "anxiety_thyroid",
+          "label": "Anxiety, and thyrotoxicosis",
+          "detail": "Send TFTs and treat the panic.",
+          "is_correct": false,
+          "score_delta": 5,
+          "next_stage_key": "ecg",
+          "feedback": "Thyrotoxicosis is worth a blood test. Anxiety is not a diagnosis you can make while an undiagnosed tachyarrhythmia is running on the monitor."
+        },
+        {
+          "key": "acs_dissection",
+          "label": "Acute coronary syndrome, and aortic dissection",
+          "detail": "Chest tightness in an adult.",
+          "is_correct": false,
+          "score_delta": 10,
+          "next_stage_key": "ecg",
+          "feedback": "Both deserve a thought, but neither fits a 34-year-old with a sudden regular tachycardia at rest, no risk factors and no tearing pain. You have picked the rarer pair and left the likely ones open."
+        }
+      ]
+    },
+    {
+      "key": "ecg",
+      "kind": "investigation",
+      "title": "The ECG",
+      "narrative": "The twelve-lead shows a regular narrow-complex tachycardia at 184 with no visible P waves and a pseudo-R' in V1. No ST elevation. No right heart strain pattern, no S1Q3T3.\n\nShe remains alert with a systolic of 106 and saturations of 98% in air.",
+      "patient_line": "It's still going. It feels like it's going to burst out of my chest.",
+      "clinical_note": "Regular narrow-complex tachycardia, no P waves, pseudo-R' in V1. Haemodynamically stable.",
+      "vitals": {
+        "hr": 184,
+        "bp": "106/70",
+        "rr": 22,
+        "spo2": 98,
+        "temp": 36.8
+      },
+      "prompt": "She is stable. What is your first treatment?",
+      "options": [
+        {
+          "key": "valsalva",
+          "label": "Modified Valsalva manoeuvre",
+          "detail": "Strain, then lay flat with legs raised.",
+          "is_correct": true,
+          "score_delta": 25,
+          "next_stage_key": "outcome_good",
+          "feedback": "Correct. The modified Valsalva converts substantially more patients than the standard version, and it is free, fast and harmless in a stable patient."
+        },
+        {
+          "key": "adenosine_first",
+          "label": "Straight to IV adenosine",
+          "detail": "6 mg rapid push with a flush.",
+          "is_correct": false,
+          "score_delta": 10,
+          "next_stage_key": "outcome_good",
+          "feedback": "It will very likely work, and it is the right next step — but a vagal manoeuvre first spares many patients a genuinely horrible few seconds and costs a minute."
+        },
+        {
+          "key": "cardiovert",
+          "label": "Synchronised DC cardioversion",
+          "detail": "Sedate and shock.",
+          "is_correct": false,
+          "score_delta": 0,
+          "next_stage_key": "outcome_poor",
+          "feedback": "She is alert with a maintained blood pressure. Cardioversion is for the unstable patient; here it is sedation and a shock she did not need.",
+          "is_harmful": true
+        }
+      ]
+    },
+    {
+      "key": "outcome_good",
+      "kind": "outcome",
+      "title": "Converted",
+      "is_terminal": true,
+      "outcome": "good",
+      "narrative": "The modified Valsalva breaks the rhythm at the second attempt. Sinus rhythm at 78. Her chest tightness and breathlessness resolve with the rate.\n\nWith the arrhythmia treated, the PE question is reasoned through properly: she is now well, PERC is not satisfied because of the oestrogen and recent travel, so a D-dimer is sent and is negative. She goes home with cardiology follow-up for probable AVNRT, advice on vagal manoeuvres, and — for the first time — a name for what has been happening to her.",
+      "patient_line": "So it wasn't in my head. I've been told it was stress for a year.",
+      "clinical_note": "Sinus rhythm 78. D-dimer negative. Referred to cardiology for AVNRT.",
+      "vitals": {
+        "hr": 78,
+        "bp": "118/74",
+        "rr": 16,
+        "spo2": 99,
+        "temp": 36.8
+      }
+    },
+    {
+      "key": "outcome_poor",
+      "kind": "outcome",
+      "title": "More than she needed",
+      "is_terminal": true,
+      "outcome": "poor",
+      "narrative": "She converts, but she has been sedated and shocked for a rhythm that would have broken with a manoeuvre she could have done herself. She is admitted overnight for observation after the sedation, and is frightened of the hospital afterwards.",
+      "patient_line": "I didn't realise it was that serious. Will I need that every time?",
+      "clinical_note": "Sinus rhythm restored. Unnecessary procedural sedation in a stable patient."
+    }
+  ]
+}

@@ -39,6 +39,28 @@ class Article(SQLModel, table=True):
     # are no external requests and no layout shift; `cover_alt` describes it.
     cover: str = Field(default="")
     cover_alt: str = Field(default="")
+    # The cover's shape, so a card can reserve the right box before the image
+    # loads. Stored rather than measured: the browser only learns an image's
+    # real dimensions after fetching it, and a card that guesses 16:9 and then
+    # reflows to a portrait photo is the layout shift this avoids.
+    # landscape | portrait | square
+    cover_orientation: str = Field(default="landscape")
+
+    # A stock photo chosen for this article, cached here so the provider is
+    # called once per article rather than once per page load. `image_url` being
+    # set is what marks the article as resolved; clearing it schedules a refetch.
+    # Width and height are the provider's real dimensions, and image_orientation
+    # is derived from them rather than from what was requested.
+    image_provider: str = Field(default="")
+    image_provider_id: str = Field(default="")
+    image_url: str = Field(default="")
+    image_source_url: str = Field(default="")
+    image_photographer: str = Field(default="")
+    image_photographer_url: str = Field(default="")
+    image_width: int = Field(default=0)
+    image_height: int = Field(default=0)
+    image_orientation: str = Field(default="")
+    image_alt: str = Field(default="")
     # Language of the content, for the Library language filter. Demo content
     # ships in English, Russian and Uzbek.
     language: str = Field(default="en", index=True)

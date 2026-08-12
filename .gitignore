@@ -6,7 +6,10 @@
 # Local database and uploads
 *.db
 *.db-journal
-data/
+# Anchored to the repo root on purpose: an unanchored `data/` also matched
+# app/data/, which is authored content (the Virtual Patient scenarios), not a
+# runtime volume — they were silently untracked.
+/data/
 
 # Python
 __pycache__/

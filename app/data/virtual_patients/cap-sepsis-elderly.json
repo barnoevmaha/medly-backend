@@ -1,0 +1,267 @@
+{
+  "schema": 1,
+  "case": {
+    "slug": "cap-sepsis-elderly",
+    "title": "Breathless and confused",
+    "summary": "A 74-year-old man is brought to the emergency department with three days of cough and new confusion. Recognise the deteriorating patient, and start the right treatment in the right order.",
+    "specialty": "Emergency medicine",
+    "difficulty": "medium",
+    "estimated_minutes": 12,
+    "patient_name": "Robert Iversen",
+    "patient_age": 74,
+    "patient_sex": "male",
+    "presenting_complaint": "Cough, fever and new confusion",
+    "patient_brief": "You are Robert Iversen, 74. For three days you have had a cough bringing up rusty-brown phlegm, fever and shivering. Since yesterday you feel muddled and cannot always follow what people say; your daughter says you called her by your late wife's name. Breathing takes effort and your right side hurts when you take a deep breath. You are tired and a little frightened. You take amlodipine for blood pressure and metformin for type 2 diabetes. You stopped smoking twenty years ago after forty years of it. You had a flu jab in the autumn but you cannot remember about pneumonia. You live alone. You do not know what is wrong with you and you have not been told.",
+    "first_stage_key": "arrival",
+    "correct_diagnosis": "Community-acquired pneumonia complicated by sepsis (CURB-65 score 3)",
+    "learning_objectives": "Recognise sepsis in an older patient whose only new sign is confusion; score severity with CURB-65; apply the sepsis six in the first hour; understand why cultures come before antibiotics but never delay them.",
+    "debrief_md": "## The case\n\nRobert had **community-acquired pneumonia complicated by sepsis**. His CURB-65 was 3 — new **C**onfusion, **R**espiratory rate 26, **B**lood pressure 98/60, **65** and over — which predicts a high risk of death and calls for admission and urgent treatment.\n\n## Why confusion mattered\n\nIn an older patient, new confusion is often the only outward sign of sepsis. There was no need to wait for a fever spike or a crash in blood pressure; the confusion was the red flag.\n\n## The first hour\n\nThe sepsis six belong together: oxygen, blood cultures, intravenous antibiotics, fluids, lactate and urine output. Cultures before antibiotics gives the microbiology a chance, but a culture is never a reason to delay the antibiotic — every hour of delay in septic shock measurably increases mortality.\n\n## Key points\n\n- New confusion in an older person is sepsis until proven otherwise.\n- CURB-65 turns a hunch about severity into a decision about place of care.\n- Oxygen and antibiotics are not sequential problems; both happen now.\n- Sending a septic, hypoxic patient home is the error that kills.",
+    "pass_ratio": 0.6,
+    "icon": "stethoscope",
+    "order": 0,
+    "opening_vitals": {
+      "hr": 112,
+      "bp": "98/60",
+      "rr": 26,
+      "spo2": 89,
+      "temp": 38.9,
+      "gcs": 14
+    }
+  },
+  "stages": [
+    {
+      "key": "arrival",
+      "kind": "intro",
+      "title": "Arrival",
+      "narrative": "Robert Iversen, 74, is brought in by his daughter at 21:40. She says he has had a cough for three days and 'has not been himself' since yesterday. He is sitting forward on the trolley, breathing with visible effort.",
+      "patient_line": "I've had this cough for days and now I can't seem to get a proper breath. My chest hurts when I breathe in. I'm sorry, what did you ask me?",
+      "clinical_note": "Triage observations are on the monitor.",
+      "prompt": "What do you do first?",
+      "options": [
+        {
+          "key": "abcde",
+          "label": "Begin a structured A–E assessment",
+          "detail": "Airway, breathing, circulation, disability, exposure.",
+          "is_correct": true,
+          "score_delta": 20,
+          "next_stage_key": "history",
+          "feedback": "Correct. A breathless, confused patient gets a structured assessment before anything else — it finds the problem that will kill first."
+        },
+        {
+          "key": "history_first",
+          "label": "Take a full history from the daughter first",
+          "detail": "Sit down and get the background before examining.",
+          "is_correct": false,
+          "score_delta": 5,
+          "next_stage_key": "history",
+          "feedback": "The history matters, but not before you have looked at airway, breathing and circulation in a patient working this hard to breathe."
+        },
+        {
+          "key": "wait_bloods",
+          "label": "Order bloods and wait for the results",
+          "detail": "Full blood count, urea and electrolytes, CRP.",
+          "is_correct": false,
+          "is_harmful": true,
+          "score_delta": 0,
+          "next_stage_key": "history",
+          "feedback": "Waiting on a laboratory before assessing a hypoxic patient loses the hour that matters most. He desaturates while the sample is in the tube."
+        }
+      ],
+      "vitals": {}
+    },
+    {
+      "key": "history",
+      "kind": "history",
+      "title": "History and examination",
+      "narrative": "Three days of productive cough with rusty sputum, fever and rigors. New confusion since yesterday — his daughter is clear that this is not his normal self. Right-sided pleuritic chest pain. Background: type 2 diabetes on metformin, hypertension on amlodipine, ex-smoker of forty pack-years. Lives alone.\n\nOn examination: bronchial breathing and coarse crackles at the right base, dull to percussion.",
+      "patient_line": "The phlegm's been a rusty colour, not like my usual. I've been shivering under two blankets. My daughter says I've been getting muddled — I don't really notice it myself.",
+      "clinical_note": "Observations: HR 112, BP 98/60, RR 26, SpO2 89% on air, temperature 38.9 °C, GCS 14 (confused speech).",
+      "prompt": "How do you rate the severity of this pneumonia?",
+      "options": [
+        {
+          "key": "curb65_3",
+          "label": "CURB-65 of 3 — high risk, admit and treat urgently",
+          "detail": "Confusion, RR ≥ 30? no — but RR 26 with BP 98/60 and age ≥ 65.",
+          "is_correct": true,
+          "score_delta": 25,
+          "next_stage_key": "sepsis_six",
+          "feedback": "Correct. Confusion, low blood pressure and age over 65 give a CURB-65 of 3 — high risk, needing admission and urgent treatment."
+        },
+        {
+          "key": "curb65_1",
+          "label": "CURB-65 of 1 — low risk, suitable for home treatment",
+          "detail": "Only the age criterion counts.",
+          "is_correct": false,
+          "is_harmful": true,
+          "score_delta": 0,
+          "next_stage_key": "sepsis_six",
+          "feedback": "Under-scoring here is the dangerous error. The confusion and the blood pressure both count, and missing them sends a septic patient home."
+        },
+        {
+          "key": "no_score",
+          "label": "Severity scores are unreliable — judge clinically",
+          "detail": "Treat on impression rather than a score.",
+          "is_correct": false,
+          "score_delta": 5,
+          "next_stage_key": "sepsis_six",
+          "feedback": "Clinical judgement matters, but CURB-65 exists precisely because impressions of severity vary between clinicians."
+        }
+      ],
+      "vitals": {}
+    },
+    {
+      "key": "sepsis_six",
+      "kind": "decision",
+      "title": "The first hour",
+      "narrative": "He meets the criteria for sepsis. It is 21:55. You have a nurse and a set of intravenous access.",
+      "patient_line": "I feel cold. Am I going to have to stay in? I've got the dog at home on his own.",
+      "clinical_note": "Venous lactate has been sent. SpO2 89% on air.",
+      "prompt": "What is your immediate management?",
+      "options": [
+        {
+          "key": "sepsis_six_bundle",
+          "label": "Oxygen, blood cultures, then IV antibiotics and fluids",
+          "detail": "The sepsis six, cultures drawn before the first dose.",
+          "is_correct": true,
+          "score_delta": 30,
+          "state_after": "improving",
+          "vitals_patch_json": "{\"spo2\": 95, \"hr\": 104, \"rr\": 22}",
+          "next_stage_key": "response",
+          "feedback": "Correct. Cultures before antibiotics where it costs no time, and both inside the first hour. His saturations come up on oxygen."
+        },
+        {
+          "key": "antibiotics_only",
+          "label": "IV antibiotics immediately, cultures afterwards",
+          "detail": "Do not delay the antibiotic for anything.",
+          "is_correct": false,
+          "score_delta": 15,
+          "state_after": "stable",
+          "vitals_patch_json": "{\"spo2\": 91, \"hr\": 108}",
+          "next_stage_key": "response",
+          "feedback": "Defensible — never delay antibiotics — but here cultures cost nothing and you have also left him hypoxic on air. Oxygen was free and immediate."
+        },
+        {
+          "key": "await_cxr",
+          "label": "Wait for the chest X-ray before starting treatment",
+          "detail": "Confirm the diagnosis radiologically first.",
+          "is_correct": false,
+          "is_harmful": true,
+          "score_delta": 0,
+          "next_stage_key": "response",
+          "feedback": "The X-ray will confirm what the examination already told you. Sepsis treatment is not held for imaging; he deteriorates in the queue."
+        },
+        {
+          "key": "discharge",
+          "label": "Oral antibiotics and discharge with safety-netting",
+          "detail": "Treat as an outpatient with review in 48 hours.",
+          "is_correct": false,
+          "is_harmful": true,
+          "score_delta": 0,
+          "state_after": "critical",
+          "vitals_patch_json": "{\"hr\": 128, \"bp\": \"84/50\", \"rr\": 32, \"spo2\": 84, \"gcs\": 12}",
+          "next_stage_key": "deterioration",
+          "feedback": "This is the error that kills. A septic, hypoxic, confused 74-year-old cannot be managed at home."
+        }
+      ],
+      "vitals": {}
+    },
+    {
+      "key": "deterioration",
+      "kind": "decision",
+      "title": "Deterioration",
+      "narrative": "Twenty minutes later the nurse calls you back. He is grey, peripherally shut down and barely rousable. His daughter is frightened.",
+      "patient_line": "…I can't… I can't get my breath…",
+      "clinical_note": "HR 128, BP 84/50, RR 32, SpO2 84% on air, GCS 12. Lactate 4.2.",
+      "prompt": "What now?",
+      "options": [
+        {
+          "key": "escalate",
+          "label": "Sepsis six now and escalate to critical care",
+          "detail": "Oxygen, fluids, antibiotics, and call for help.",
+          "is_correct": true,
+          "score_delta": 20,
+          "state_after": "stable",
+          "vitals_patch_json": "{\"hr\": 112, \"bp\": \"96/58\", \"rr\": 26, \"spo2\": 93, \"gcs\": 14}",
+          "next_stage_key": "response",
+          "feedback": "Correct, and it rescues him. Recognising your own earlier error and escalating fast is the skill being tested here."
+        },
+        {
+          "key": "observe_more",
+          "label": "Give oral antibiotics and observe for another hour",
+          "detail": "Reassess after a period of observation.",
+          "is_correct": false,
+          "is_harmful": true,
+          "score_delta": 0,
+          "state_after": "failed",
+          "next_stage_key": "outcome_poor",
+          "feedback": "He arrests during the hour you spent observing. Septic shock does not wait, and oral antibiotics do not treat it."
+        }
+      ],
+      "vitals": {}
+    },
+    {
+      "key": "response",
+      "kind": "investigation",
+      "title": "Response to treatment",
+      "narrative": "The chest X-ray shows right lower lobe consolidation. Blood cultures are in the laboratory. He is on oxygen and looks better than he did an hour ago.",
+      "patient_line": "That mask helps. I can get a breath now. I still feel wrung out, though.",
+      "clinical_note": "Lactate 2.1, falling. Urine output 40 ml in the last hour.",
+      "prompt": "Where should he be managed?",
+      "options": [
+        {
+          "key": "admit_ward",
+          "label": "Admit to an acute medical bed with continued IV antibiotics",
+          "detail": "Regular observations and senior review in the morning.",
+          "is_correct": true,
+          "score_delta": 25,
+          "state_after": "improving",
+          "next_stage_key": "outcome_good",
+          "feedback": "Correct. CURB-65 3 means admission, intravenous antibiotics and close observation."
+        },
+        {
+          "key": "discharge_now",
+          "label": "Discharge now that he has improved, with oral antibiotics",
+          "detail": "He responded quickly and would rather be at home.",
+          "is_correct": false,
+          "is_harmful": true,
+          "score_delta": 0,
+          "state_after": "deteriorating",
+          "next_stage_key": "outcome_poor",
+          "feedback": "An early response to oxygen does not undo a CURB-65 of 3. He returns overnight, worse."
+        },
+        {
+          "key": "icu",
+          "label": "Admit directly to intensive care",
+          "detail": "Manage in a critical care bed.",
+          "is_correct": false,
+          "score_delta": 10,
+          "next_stage_key": "outcome_good",
+          "feedback": "Not wrong so much as disproportionate — he is responding, and a ward bed with good observation is the right level. Critical care beds are a scarce resource."
+        }
+      ],
+      "vitals": {}
+    },
+    {
+      "key": "outcome_good",
+      "kind": "outcome",
+      "title": "Outcome",
+      "narrative": "Robert is admitted, treated with intravenous antibiotics and oxygen, and improves over 48 hours. Blood cultures grow Streptococcus pneumoniae sensitive to the antibiotic started in the emergency department. He goes home on day five with a pneumococcal vaccination booked.",
+      "patient_line": "I'm told I gave everyone a fright. Thank you for sorting me out.",
+      "clinical_note": "Discharged day 5. Full recovery expected.",
+      "is_terminal": true,
+      "outcome": "good",
+      "vitals": {}
+    },
+    {
+      "key": "outcome_poor",
+      "kind": "outcome",
+      "title": "Outcome",
+      "narrative": "Robert deteriorates. He is readmitted in septic shock requiring vasopressors and a prolonged intensive care stay. He survives, but with a long recovery that earlier treatment would have avoided.",
+      "patient_line": "",
+      "clinical_note": "Delayed source control and delayed antibiotics are the modifiable factors in this outcome.",
+      "is_terminal": true,
+      "outcome": "poor",
+      "vitals": {}
+    }
+  ]
+}

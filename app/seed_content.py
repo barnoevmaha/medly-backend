@@ -50,6 +50,7 @@ ARTICLES = [
         "base_likes": 0,
         "hours_ago": 2,
         "cover": "/covers/articles/post-concussion-syndrome-when-symptoms-persist.jpg",
+        "cover_orientation": "landscape",
         "excerpt": (
             "A concussion usually settles within a few weeks. For a significant minority it "
             "does not \u2014 and the severity of the original injury turns out to be a poor "
@@ -114,6 +115,7 @@ The outlook is highly encouraging where care is structured and specialist-guided
         "base_likes": 0,
         "hours_ago": 6,
         "cover": "/covers/articles/autoimmune-encephalitis-and-the-brain-under-attack.jpg",
+        "cover_orientation": "landscape",
         "excerpt": (
             "Confusion, memory loss and a personality change that arrives over days. The "
             "presentation resembles psychiatric illness closely enough that the diagnosis is "
@@ -159,6 +161,7 @@ With timely treatment many patients recover well, though rehabilitation may be n
         "base_likes": 0,
         "hours_ago": 10,
         "cover": "/covers/articles/oncology-must-confront-hidden-side-effects.jpg",
+        "cover_orientation": "landscape",
         "excerpt": (
             "Cancer therapy has become dramatically more targeted, and patients are living "
             "longer. The systems for recording what those therapies cost patients day to day "
@@ -752,6 +755,7 @@ def _seed_articles(session: Session) -> None:
                 read_minutes=int(spec["read_minutes"]),
                 cover=str(spec.get("cover", f"/covers/articles/{spec['slug']}.svg")),
                 cover_alt=ARTICLE_COVER_ALT.get(str(spec["slug"]), ""),
+                cover_orientation=str(spec.get("cover_orientation", "landscape")),
                 base_likes=int(spec["base_likes"]),
                 published_at=NOW - timedelta(hours=int(spec["hours_ago"])),
             )

@@ -1,0 +1,204 @@
+{
+  "schema": 1,
+  "case": {
+    "slug": "appendicitis-child",
+    "title": "A sore tummy that moved",
+    "summary": "A 9-year-old girl has had central abdominal pain since yesterday that has settled in her right side. The examination is the investigation — and analgesia will not hide it.",
+    "specialty": "Paediatric surgery",
+    "difficulty": "medium",
+    "estimated_minutes": 12,
+    "patient_name": "Nadia Rahimi",
+    "patient_age": 9,
+    "patient_sex": "female",
+    "presenting_complaint": "Abdominal pain for 24 hours, now right-sided",
+    "patient_brief": "You are Nadia, 9. Your tummy started hurting yesterday afternoon, around your belly button — a dull ache that came and went. Since this morning it has moved to the lower right side and it is sharper and constant now. It hurts more when the car goes over bumps and when you cough. You did not want breakfast or lunch. You were sick once this morning, after the pain started. You have not had diarrhoea. It does not hurt to wee. You feel hot. You are quiet and lying very still with your knees bent, and you do not want anyone to press on your tummy. You are scared of needles and you want your mum to stay.",
+    "opening_vitals": {
+      "hr": 112,
+      "bp": "104/64",
+      "rr": 22,
+      "temp": 37.9,
+      "spo2": 99
+    },
+    "first_stage_key": "arrival",
+    "correct_diagnosis": "Acute appendicitis",
+    "learning_objectives": "Recognise the migrating pain of appendicitis in a child; give analgesia early and know that it does not mask the signs; use a clinical score to support rather than replace judgement; choose ultrasound before CT in a child; recognise when serial examination is the right answer.",
+    "debrief_md": "## Migration is the sign\n\nPeriumbilical pain that moves to the right iliac fossa over 12 to 24 hours, with anorexia and one episode of vomiting *after* the pain began, is the classic sequence. The order matters: vomiting before pain points elsewhere.\n\n## Analgesia does not mask it\n\nThe belief that opioids obscure the abdominal examination and delay diagnosis has been tested repeatedly and does not hold. Withholding analgesia from a child in pain makes the examination harder, not more reliable — a frightened, guarding child who will not let you near her abdomen tells you very little.\n\n## Scores support, they do not decide\n\nThe Alvarado and Paediatric Appendicitis scores are useful for stratifying, not for ruling out. A low score in a child with migratory pain and localised tenderness does not discharge her.\n\n## Imaging in children\n\nUltrasound first. It avoids ionising radiation in a child, and in experienced hands it is good at confirming. What it is not good at is excluding — a non-visualised appendix is not a normal appendix, which is why the answer to an equivocal scan in a child who still has signs is admission and serial examination, not discharge.",
+    "pass_ratio": 0.6,
+    "icon": "stethoscope",
+    "cover": "/lottie/stomach-ache.json",
+    "order": 3
+  },
+  "stages": [
+    {
+      "key": "arrival",
+      "kind": "intro",
+      "title": "In the assessment bay",
+      "narrative": "Nadia is brought in by her mother at 14:00. She is lying still on the trolley with her knees drawn up and winces when the trolley is moved. She has not eaten since yesterday evening.",
+      "patient_line": "It hurts here now. It started near my belly button but it moved. Please don't press it.",
+      "clinical_note": "Temperature 37.9°C. Lying still, reluctant to move. Declines to sit forward.",
+      "vitals": {
+        "hr": 112,
+        "bp": "104/64",
+        "rr": 22,
+        "temp": 37.9,
+        "spo2": 99
+      },
+      "prompt": "She is in obvious pain. What comes first?",
+      "options": [
+        {
+          "key": "analgesia",
+          "label": "Give weight-appropriate analgesia, then examine",
+          "detail": "Intranasal or oral, then assess properly.",
+          "is_correct": true,
+          "score_delta": 20,
+          "next_stage_key": "history",
+          "feedback": "Correct. Analgesia does not mask the signs of appendicitis — that belief has been tested and does not hold. A child in less pain gives you a better examination, not a worse one."
+        },
+        {
+          "key": "examine_first",
+          "label": "Examine her thoroughly first, analgesia after",
+          "detail": "Get the signs before anything blunts them.",
+          "is_correct": false,
+          "score_delta": 5,
+          "next_stage_key": "history",
+          "feedback": "This is the classic teaching and it is wrong. You will get guarding from distress rather than peritonism, and you will have hurt a 9-year-old to obtain it."
+        },
+        {
+          "key": "nbm_wait",
+          "label": "Keep her nil by mouth and wait for the surgical team",
+          "detail": "No analgesia until she has been seen.",
+          "is_correct": false,
+          "score_delta": 0,
+          "next_stage_key": "history",
+          "feedback": "Nil by mouth is sensible. Leaving her in pain for an hour until someone else arrives is not — and it delays the assessment rather than preserving it.",
+          "is_harmful": true
+        }
+      ]
+    },
+    {
+      "key": "history",
+      "kind": "history",
+      "title": "History and examination",
+      "narrative": "Pain began yesterday afternoon around the umbilicus, colicky and intermittent. Since this morning it has localised to the right iliac fossa and become constant and sharp. Worse over speed bumps in the car and on coughing. Complete anorexia. One vomit this morning, after the pain started. No diarrhoea, no dysuria, no frequency. Not yet menarcheal.\n\nAfter analgesia she tolerates examination: localised tenderness and guarding at McBurney's point, with percussion tenderness. Bowel sounds present. No mass. Urinalysis shows a trace of ketones, no nitrites, no leucocytes, no blood.",
+      "patient_line": "It really hurt when the car went over the bumps on the way here.",
+      "clinical_note": "RIF tenderness with guarding and percussion tenderness. Urinalysis: ketones only.",
+      "vitals": {
+        "hr": 108,
+        "bp": "106/66",
+        "rr": 20,
+        "temp": 38.0,
+        "spo2": 99
+      },
+      "prompt": "Which feature here carries the most diagnostic weight?",
+      "options": [
+        {
+          "key": "migration",
+          "label": "Pain that migrated from umbilicus to right iliac fossa",
+          "detail": "With anorexia and vomiting after the pain.",
+          "is_correct": true,
+          "score_delta": 20,
+          "next_stage_key": "imaging",
+          "feedback": "Correct. Migration is the single most useful historical feature, and the sequence matters — vomiting after the pain rather than before it."
+        },
+        {
+          "key": "fever",
+          "label": "The temperature of 38.0°C",
+          "detail": "A fever supports infection.",
+          "is_correct": false,
+          "score_delta": 5,
+          "next_stage_key": "imaging",
+          "feedback": "A low-grade fever is common in appendicitis but it is common in a great many things. On its own it moves you very little."
+        },
+        {
+          "key": "vomit",
+          "label": "The single episode of vomiting",
+          "detail": "Vomiting suggests a surgical abdomen.",
+          "is_correct": false,
+          "score_delta": 5,
+          "next_stage_key": "imaging",
+          "feedback": "One vomit after the pain fits, but vomiting is the least specific of the three. A child with gastroenteritis vomits far more and hurts far less."
+        }
+      ]
+    },
+    {
+      "key": "imaging",
+      "kind": "investigation",
+      "title": "Investigation",
+      "narrative": "Bloods: white cell count 15.2, neutrophils 12.1, CRP 48. Her Paediatric Appendicitis Score is 8.\n\nShe remains tender in the right iliac fossa with guarding, and now has rebound on percussion.",
+      "patient_line": "Can I have a drink? I'm really thirsty.",
+      "clinical_note": "WCC 15.2, neutrophilia, CRP 48. PAS 8. Persistent localised peritonism.",
+      "vitals": {
+        "hr": 106,
+        "bp": "106/66",
+        "rr": 20,
+        "temp": 38.1,
+        "spo2": 99
+      },
+      "prompt": "How do you proceed?",
+      "options": [
+        {
+          "key": "refer_uss",
+          "label": "Refer to paediatric surgery and arrange an ultrasound",
+          "detail": "Clinically appendicitis; imaging to support, not to gate.",
+          "is_correct": true,
+          "score_delta": 25,
+          "next_stage_key": "outcome_good",
+          "feedback": "Correct. The clinical picture and the score are convincing enough to involve surgery now. Ultrasound is first-line in a child because it avoids radiation — but the referral does not wait on it."
+        },
+        {
+          "key": "ct",
+          "label": "Request a CT abdomen for a definitive answer",
+          "detail": "Higher sensitivity than ultrasound.",
+          "is_correct": false,
+          "score_delta": 5,
+          "next_stage_key": "outcome_good",
+          "feedback": "CT is more sensitive, and in a 9-year-old it is also a dose of ionising radiation you rarely need. Ultrasound first in children; CT if the picture stays unclear."
+        },
+        {
+          "key": "discharge",
+          "label": "Discharge with safety-net advice and review tomorrow",
+          "detail": "Reassess in 24 hours if no better.",
+          "is_correct": false,
+          "score_delta": 0,
+          "next_stage_key": "outcome_poor",
+          "feedback": "With migratory pain, localised peritonism, a neutrophilia and a score of 8, sending her home risks perforation overnight. If you are genuinely uncertain, the answer is admission and serial examination — not discharge.",
+          "is_harmful": true
+        }
+      ]
+    },
+    {
+      "key": "outcome_good",
+      "kind": "outcome",
+      "title": "Managed well",
+      "is_terminal": true,
+      "outcome": "good",
+      "narrative": "Ultrasound shows a non-compressible blind-ending tubular structure of 9 mm with surrounding free fluid. She goes to theatre that evening for a laparoscopic appendicectomy; the appendix is inflamed but not perforated. She is home the following afternoon and back at school within the week.",
+      "patient_line": "It doesn't hurt like it did. Can I eat something now?",
+      "clinical_note": "Laparoscopic appendicectomy. Acute appendicitis, no perforation. Uncomplicated recovery.",
+      "vitals": {
+        "hr": 92,
+        "bp": "108/68",
+        "rr": 18,
+        "temp": 37.2,
+        "spo2": 99
+      }
+    },
+    {
+      "key": "outcome_poor",
+      "kind": "outcome",
+      "title": "A night too long",
+      "is_terminal": true,
+      "outcome": "poor",
+      "narrative": "Nadia returns at 04:00 with severe generalised abdominal pain, a heart rate of 140 and a temperature of 39.2°C. At laparotomy the appendix has perforated with generalised peritonitis. She needs a longer operation, intravenous antibiotics and five days in hospital.",
+      "patient_line": "It hurts everywhere now, not just the one side.",
+      "clinical_note": "Perforated appendix with generalised peritonitis. Prolonged admission.",
+      "vitals": {
+        "hr": 140,
+        "bp": "92/54",
+        "rr": 28,
+        "temp": 39.2,
+        "spo2": 97
+      }
+    }
+  ]
+}

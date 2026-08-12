@@ -1,0 +1,191 @@
+{
+  "schema": 1,
+  "case": {
+    "slug": "measles-child",
+    "title": "Fever, then a rash",
+    "summary": "A 4-year-old boy has had fever and streaming cold symptoms for four days, and now a rash. What you do in the first two minutes matters more than the diagnosis.",
+    "specialty": "Paediatrics",
+    "difficulty": "easy",
+    "estimated_minutes": 10,
+    "patient_name": "Tomas Berg",
+    "patient_age": 4,
+    "patient_sex": "male",
+    "presenting_complaint": "Four days of fever and coryza, now a rash",
+    "patient_brief": "You are the mother of Tomas, 4. He has had a high fever for four days with a streaming nose, a barking cough and red, sore, watery eyes — he keeps turning away from the lights. This morning a blotchy red rash started behind his ears and on his face and is spreading down. He is miserable, off his food and drinking less than usual, but still passing urine. He had his first MMR at 12 months; you moved twice and think he missed the second one. Your neighbour's children had 'a bad rash' three weeks ago. You are worried and want to know if it is serious.",
+    "opening_vitals": {
+      "hr": 132,
+      "rr": 28,
+      "temp": 39.4,
+      "spo2": 97,
+      "cap_refill": 2
+    },
+    "first_stage_key": "waiting_room",
+    "correct_diagnosis": "Measles (unimmunised, classic prodrome with Koplik spots and a descending morbilliform rash)",
+    "learning_objectives": "Isolate a suspected measles case before completing the assessment; recognise the prodrome and Koplik spots; know that measles is notifiable on suspicion, not on confirmation; give vitamin A; look for the complications that actually kill.",
+    "debrief_md": "## The two minutes that mattered\n\nThe diagnosis here is not hard. The decision that changes outcomes is what happens at the front desk.\n\nMeasles is airborne and stays infectious in a room for up to two hours after the patient leaves. A febrile, coryzal, unimmunised child sitting in an open paediatric waiting area exposes every infant too young for MMR and every immunosuppressed child in it. Isolation comes before the history, not after it.\n\n## Notify on suspicion\n\nMeasles is a notifiable disease on **clinical suspicion**. Waiting for serology or PCR before telling public health costs the days in which contacts could still be offered post-exposure prophylaxis — MMR within 72 hours, or immunoglobulin for those who cannot have it.\n\n## Vitamin A\n\nTwo doses of vitamin A, 24 hours apart, reduce measles mortality. It is recommended for all children with measles in settings where it is available, not only where deficiency is endemic.\n\n## What to watch for\n\nOtitis media is the commonest complication; pneumonia is the commonest cause of death. Any drowsiness, seizure or behavioural change raises acute encephalitis. This child has none of those — but the safety-net advice is what catches the ones who develop them at home.",
+    "pass_ratio": 0.6,
+    "icon": "stethoscope",
+    "cover": "/lottie/boy-spots.json",
+    "order": 1
+  },
+  "stages": [
+    {
+      "key": "waiting_room",
+      "kind": "intro",
+      "title": "At the front desk",
+      "narrative": "Tomas is brought to the paediatric assessment unit at 10:20. He is flushed, photophobic and coughing. From the desk you can see a blotchy red rash on his face and behind his ears. The waiting area is full — including a six-week-old in a pram.",
+      "patient_line": "He's been burning up for four days and now this rash has come out all over his face.",
+      "clinical_note": "Temperature 39.4°C. Marked coryza, conjunctivitis and a barking cough.",
+      "vitals": {
+        "hr": 132,
+        "rr": 28,
+        "temp": 39.4,
+        "spo2": 97,
+        "cap_refill": 2
+      },
+      "prompt": "What do you do first?",
+      "options": [
+        {
+          "key": "isolate",
+          "label": "Move him straight into a single room",
+          "detail": "Isolate now, assess after.",
+          "is_correct": true,
+          "score_delta": 20,
+          "next_stage_key": "history",
+          "feedback": "Correct. Fever, coryza, conjunctivitis and a descending rash in an unimmunised child is measles until proven otherwise, and it is airborne. The room comes first."
+        },
+        {
+          "key": "assess_first",
+          "label": "Assess him where he is, then decide",
+          "detail": "Take a history and examine in the bay.",
+          "is_correct": false,
+          "score_delta": 5,
+          "next_stage_key": "history",
+          "feedback": "Understandable, but every minute in an open bay is exposure. Measles hangs in the air for two hours after he leaves the room."
+        },
+        {
+          "key": "wait_turn",
+          "label": "Ask them to wait — he is not acutely unwell",
+          "detail": "Triage as routine; he is well perfused.",
+          "is_correct": false,
+          "score_delta": 0,
+          "next_stage_key": "history",
+          "feedback": "He is stable, which is exactly why this is tempting. But the six-week-old across the room is too young for MMR, and this is how a hospital outbreak starts.",
+          "is_harmful": true
+        }
+      ]
+    },
+    {
+      "key": "history",
+      "kind": "history",
+      "title": "History and examination",
+      "narrative": "Four days of fever peaking at 39.5°C, profuse coryza, a harsh cough and red watery eyes. The rash began behind the ears yesterday evening and has spread to the face and upper trunk — blotchy, red, becoming confluent on the cheeks.\n\nOne MMR at 12 months; the pre-school booster was missed. A neighbour's children had an undiagnosed febrile rash three weeks ago.\n\nOn examination he is alert and miserable but not drowsy. Chest is clear. No neck stiffness. The rash blanches. On the buccal mucosa opposite the second molars there are tiny white spots on a red base.",
+      "patient_line": "He keeps rubbing his eyes and he won't look at the light. He's drinking about half what he normally does.",
+      "clinical_note": "Blanching morbilliform rash, descending. Koplik spots present. No petechiae, no meningism.",
+      "vitals": {
+        "hr": 128,
+        "rr": 26,
+        "temp": 39.1,
+        "spo2": 97,
+        "cap_refill": 2
+      },
+      "prompt": "Those white buccal spots — what do they tell you?",
+      "options": [
+        {
+          "key": "koplik",
+          "label": "Koplik spots — this is measles",
+          "detail": "Pathognomonic, and they appear before the rash peaks.",
+          "is_correct": true,
+          "score_delta": 20,
+          "next_stage_key": "management",
+          "feedback": "Correct. Koplik spots are effectively diagnostic of measles and they let you act today rather than waiting on serology."
+        },
+        {
+          "key": "thrush",
+          "label": "Oral candidiasis",
+          "detail": "Treat with nystatin.",
+          "is_correct": false,
+          "score_delta": 0,
+          "next_stage_key": "management",
+          "feedback": "Thrush is a white plaque you can scrape off, on a child who is usually either very young, inhaled-steroid-exposed or immunosuppressed. These are pinpoint spots on an erythematous base."
+        },
+        {
+          "key": "hfm",
+          "label": "Hand, foot and mouth disease",
+          "detail": "Coxsackie — expect vesicles on palms and soles.",
+          "is_correct": false,
+          "score_delta": 5,
+          "next_stage_key": "management",
+          "feedback": "Reasonable differential for mouth lesions in a 4-year-old, but hand, foot and mouth does not give four days of high fever with conjunctivitis and a descending facial rash."
+        }
+      ]
+    },
+    {
+      "key": "management",
+      "kind": "decision",
+      "title": "What now?",
+      "narrative": "He is isolated, alert, and taking oral fluids in small amounts. Chest is clear and saturations are 97% in air. The diagnosis is clinically clear.",
+      "patient_line": "Is there something you can give him for it? And should I keep his sister off school?",
+      "clinical_note": "Alert. No respiratory distress. Mildly reduced oral intake, urine output normal.",
+      "vitals": {
+        "hr": 126,
+        "rr": 24,
+        "temp": 38.8,
+        "spo2": 97,
+        "cap_refill": 2
+      },
+      "prompt": "Choose your management.",
+      "options": [
+        {
+          "key": "notify_vitA",
+          "label": "Notify public health today, give vitamin A, supportive care and safety-net advice",
+          "detail": "Notification on suspicion; two doses of vitamin A 24 hours apart.",
+          "is_correct": true,
+          "score_delta": 25,
+          "next_stage_key": "outcome_good",
+          "feedback": "Correct. Notification on suspicion is what gives contacts a chance at prophylaxis inside 72 hours, and vitamin A measurably reduces measles mortality. Everything else here is supportive."
+        },
+        {
+          "key": "antibiotics",
+          "label": "Start oral antibiotics to prevent bacterial complications",
+          "detail": "Co-amoxiclav while the fever settles.",
+          "is_correct": false,
+          "score_delta": 0,
+          "next_stage_key": "outcome_poor",
+          "feedback": "Measles is viral, and prophylactic antibiotics do not prevent its complications. You treat otitis media or pneumonia if it appears — you do not pre-empt it.",
+          "is_harmful": true
+        },
+        {
+          "key": "await_serology",
+          "label": "Send serology and notify once it is confirmed",
+          "detail": "Confirm before involving public health.",
+          "is_correct": false,
+          "score_delta": 5,
+          "next_stage_key": "outcome_poor",
+          "feedback": "Serology takes days. Measles is notifiable on clinical suspicion precisely so that contact tracing is not waiting on a laboratory.",
+          "is_harmful": true
+        }
+      ]
+    },
+    {
+      "key": "outcome_good",
+      "kind": "outcome",
+      "title": "Managed well",
+      "is_terminal": true,
+      "outcome": "good",
+      "narrative": "Tomas is discharged from the isolation room with vitamin A, antipyretics and written safety-net advice. Public health is notified the same morning and offers MMR to susceptible contacts within the 72-hour window. He develops mild otitis media on day seven, treated at his GP, and recovers fully. His sister's immunisation is brought up to date.",
+      "patient_line": "Thank you — the nurse explained about keeping him off nursery.",
+      "clinical_note": "Notified on suspicion. Vitamin A given. No pneumonia, no neurological signs."
+    },
+    {
+      "key": "outcome_poor",
+      "kind": "outcome",
+      "title": "A preventable spread",
+      "is_terminal": true,
+      "outcome": "poor",
+      "narrative": "Tomas recovers, but the delay in notification means contacts are identified after the prophylaxis window has closed. Two further cases are confirmed the following week, one in an infant too young to have been immunised who is admitted with measles pneumonitis.",
+      "patient_line": "They said the baby in the waiting room caught it. Was that from us?",
+      "clinical_note": "Outbreak control started late. The index case was managed; the contacts were not."
+    }
+  ]
+}

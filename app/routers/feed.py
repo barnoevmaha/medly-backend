@@ -11,11 +11,17 @@ from sqlmodel import Session, func, or_, select
 from app.db import get_session
 from app.lang import get_lang
 from app.models.social import Article, ArticleComment, ArticleLike, SavedItem
+from app.models.enums import Role
 from app.models.user import User
-from app.security import get_current_user
+from app.security import get_current_user, require_roles
 from app.services import gamification, localize
+from app.services.article_images import clear_image, ensure_article_image
 
 router = APIRouter(prefix="/api/feed", tags=["feed"])
+
+# Regenerating imagery is a staff action. Hiding the control in the UI is
+# not what protects it — this dependency is.
+STAFF = require_roles(Role.INSTRUCTOR, Role.ADMIN)
 
 
 class CommentOut(BaseModel):
@@ -25,6 +31,23 @@ class CommentOut(BaseModel):
     body: str
     created_at: datetime
     mine: bool
+
+
+class ArticleImageOut(BaseModel):
+    """Attribution and real dimensions for a provider-supplied photo.
+
+    Present only when a stock image was chosen. Carries no credential — the
+    provider key never leaves the server.
+    """
+
+    provider: str
+    provider_id: str
+    source_url: str
+    photographer: str
+    photographer_url: str
+    width: int
+    height: int
+    alt: str
 
 
 class ArticleOut(BaseModel):
@@ -38,6 +61,8 @@ class ArticleOut(BaseModel):
     read_minutes: int
     cover: str
     cover_alt: str
+    cover_orientation: str
+    image: Optional[ArticleImageOut] = None
     language: str
     published_at: datetime
     like_count: int
@@ -98,8 +123,27 @@ def _to_out(session: Session, article: Article, user_id: int, saved: set, lang: 
         author=article.author,
         author_role=article.author_role,
         read_minutes=article.read_minutes,
-        cover=article.cover,
-        cover_alt=article.cover_alt,
+        # A stock photo takes precedence when one has been chosen; the
+        # authored cover is the fallback, and the placeholder catches the rest.
+        cover=article.image_url or article.cover,
+        cover_alt=article.image_alt or article.cover_alt,
+        cover_orientation=(
+            article.image_orientation or article.cover_orientation
+        ),
+        image=(
+            ArticleImageOut(
+                provider=article.image_provider,
+                provider_id=article.image_provider_id,
+                source_url=article.image_source_url,
+                photographer=article.image_photographer,
+                photographer_url=article.image_photographer_url,
+                width=article.image_width,
+                height=article.image_height,
+                alt=article.image_alt,
+            )
+            if article.image_url and article.image_provider
+            else None
+        ),
         language=article.language,
         published_at=article.published_at,
         like_count=article.base_likes + counts["likes"],
@@ -253,3 +297,81 @@ def toggle_like(
     session.commit()
 
     return _to_out(session, article, user.id or 0, _saved_slugs(session, user.id or 0), lang)
+
+
+class ImageRefreshOut(BaseModel):
+    """What the regenerate endpoint reports back."""
+
+    slug: str
+    changed: bool
+    cover: str
+    cover_orientation: str
+    image: Optional[ArticleImageOut] = None
+    detail: str = ""
+
+
+def _article_or_404(session: Session, slug: str) -> Article:
+    article = session.exec(select(Article).where(Article.slug == slug)).first()
+    if article is None:
+        raise HTTPException(status_code=404, detail="Article not found")
+    return article
+
+
+@router.post("/articles/{slug}/image/regenerate", response_model=ImageRefreshOut)
+def regenerate_article_image(
+    slug: str,
+    session: Session = Depends(get_session),
+    user: User = Depends(STAFF),
+) -> ImageRefreshOut:
+    """Pick a fresh stock photo for one article, replacing the stored one.
+
+    Overwrites the article's own image fields, so regenerating repeatedly leaves
+    one photo on the row rather than accumulating them. A lookup that finds
+    nothing is reported as `changed: false` and leaves the current image intact —
+    the caller asked for a better picture, not for no picture.
+    """
+    article = _article_or_404(session, slug)
+    changed = ensure_article_image(session, article, force=True)
+    return ImageRefreshOut(
+        slug=article.slug,
+        changed=changed,
+        cover=article.image_url or article.cover,
+        cover_orientation=article.image_orientation or article.cover_orientation,
+        image=(
+            ArticleImageOut(
+                provider=article.image_provider,
+                provider_id=article.image_provider_id,
+                source_url=article.image_source_url,
+                photographer=article.image_photographer,
+                photographer_url=article.image_photographer_url,
+                width=article.image_width,
+                height=article.image_height,
+                alt=article.image_alt,
+            )
+            if article.image_url and article.image_provider
+            else None
+        ),
+        detail="" if changed else "No suitable image found; existing image kept.",
+    )
+
+
+@router.delete("/articles/{slug}/image", response_model=ImageRefreshOut)
+def drop_article_image(
+    slug: str,
+    session: Session = Depends(get_session),
+    user: User = Depends(STAFF),
+) -> ImageRefreshOut:
+    """Forget the stock photo and fall back to the article's authored cover."""
+    article = _article_or_404(session, slug)
+    clear_image(article)
+    session.add(article)
+    session.commit()
+    session.refresh(article)
+    return ImageRefreshOut(
+        slug=article.slug,
+        changed=True,
+        cover=article.cover,
+        cover_orientation=article.cover_orientation,
+        image=None,
+        detail="Reverted to the authored cover.",
+    )
