@@ -113,13 +113,18 @@ def ensure_fields(session: Session, refs: Sequence[FieldRef], lang: str) -> None
     )
 
     for (obj, target_attr, source), translated in zip(pending, translated_values):
-        setattr(obj, target_attr, translated)
-        session.add(obj)
         # A long phrase that comes back byte-identical is a translation that
-        # was refused or failed — cached now, it would look translated
-        # forever, so the viewer is told the page is partly English instead.
+        # was refused or failed. Writing it would be worse than not caching at
+        # all: the column stops being empty, so every later view skips it and
+        # the text is stuck in English permanently — one throttled request on
+        # the first view in a language and that case never translates again.
+        # Leave the column empty so the next view retries, and tell the viewer
+        # this page is partly English in the meantime.
         if translated == source and len(source) >= _MEANINGFUL_LENGTH:
             note_fallback()
+            continue
+        setattr(obj, target_attr, translated)
+        session.add(obj)
     session.commit()
 
 
