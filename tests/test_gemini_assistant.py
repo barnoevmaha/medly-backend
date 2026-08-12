@@ -6,15 +6,33 @@ the code does with a response rather than what Google returns.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from app import config
 from app.config import settings
 from app.routers import assistant as assistant_router
+from app.services import assistant as assistant_service
 from app.services import gemini
 from app.services.assistant import GeminiProvider
+
+# Settings is a frozen dataclass — production code relies on that immutability,
+# so tests cannot monkeypatch attributes on the live `settings` instance
+# (that raises `dataclasses.FrozenInstanceError`). Instead, build a replacement
+# instance with the overridden fields and swap it into every module that holds
+# its own `from app.config import settings` reference.
+_SETTINGS_MODULES = (config, assistant_router, assistant_service, gemini)
+
+
+def override_settings(monkeypatch, **overrides):
+    """Point every module that imported `settings` at a patched replacement."""
+    new_settings = replace(config.settings, **overrides)
+    for module in _SETTINGS_MODULES:
+        monkeypatch.setattr(module, "settings", new_settings)
+    return new_settings
 
 
 class FakeResponse:
@@ -41,21 +59,35 @@ def ok_payload(text: str = "## Definition\n\nAcute kidney injury is…") -> dict
 @pytest.fixture
 def gemini_on(monkeypatch):
     """Point the app at the Gemini provider with a dummy key."""
-    monkeypatch.setattr(settings, "assistant_provider", "gemini", raising=False)
-    monkeypatch.setattr(settings, "gemini_api_key", "test-key", raising=False)
-    monkeypatch.setattr(settings, "gemini_model", "gemini-3.5-flash", raising=False)
+    override_settings(
+        monkeypatch,
+        assistant_provider="gemini",
+        gemini_api_key="test-key",
+        gemini_model="gemini-3.5-flash",
+    )
     assistant_router._limiter.reset()
     yield
     assistant_router._limiter.reset()
 
 
 def patch_post(monkeypatch, responses):
-    """Serve `responses` in order; record every request body."""
+    """Serve `responses` in order; record every request body.
+
+    `gemini.py` opens a bare `httpx.Client()` per call, so faking it means
+    patching `httpx.Client.post` at the class level. `TestClient` is also an
+    `httpx.Client` subclass, and its own request dispatch goes through that
+    same method — patched carelessly, this would swallow the test's own call
+    into the FastAPI app. Only exact `httpx.Client` instances are faked; a
+    `TestClient` (or anything else) falls through to the real implementation.
+    """
     sent = []
     queue = list(responses)
+    real_post = httpx.Client.post
 
-    def fake_post(self, url, json=None, headers=None):  # noqa: A002
-        sent.append({"url": url, "body": json, "headers": headers or {}})
+    def fake_post(self, url, *args, **kwargs):  # noqa: A002
+        if type(self) is not httpx.Client:
+            return real_post(self, url, *args, **kwargs)
+        sent.append({"url": url, "body": kwargs.get("json"), "headers": kwargs.get("headers") or {}})
         return queue.pop(0) if len(queue) > 1 else queue[0]
 
     monkeypatch.setattr(httpx.Client, "post", fake_post)
@@ -95,7 +127,7 @@ def test_article_context_is_passed_as_system_context(gemini_on, monkeypatch) -> 
 
 
 def test_missing_key_raises_not_configured(monkeypatch) -> None:
-    monkeypatch.setattr(settings, "gemini_api_key", "", raising=False)
+    override_settings(monkeypatch, gemini_api_key="")
     with pytest.raises(gemini.GeminiNotConfigured):
         gemini.generate(system_prompt="s", history=[], message="Explain sepsis")
 
@@ -171,19 +203,64 @@ def test_rate_limit_returns_429_and_friendly_message(
     assert "limit" in blocked.json()["detail"].lower()
 
 
-def test_upstream_429_becomes_friendly_message(
+def test_upstream_429_falls_back_to_the_rules_engine(
     client: TestClient, student_headers: dict, gemini_on, monkeypatch
 ) -> None:
+    """Being out of quota must not put an error in front of a student.
+
+    The offline engine answers instead, and the response says so — both in the
+    notice the client renders and in the provider recorded for the audit trail.
+    """
     monkeypatch.setattr(gemini, "BASE_BACKOFF_SECONDS", 0.0)
     patch_post(monkeypatch, [FakeResponse(429, {}, "quota exceeded")])
     response = client.post(
-        "/api/assistant/chat", json={"message": "Explain sepsis"}, headers=student_headers
+        "/api/assistant/chat",
+        json={"message": "What is automation bias?"},
+        headers=student_headers,
     )
-    assert response.status_code == 429
-    detail = response.json()["detail"]
-    assert detail == "Medly AI is temporarily busy. Please try again in a moment."
-    # no raw provider error, no key
-    assert "quota exceeded" not in detail
+    assert response.status_code == 200
+    body = response.json()
+    assert body["provider"] == "rules (fallback)"
+    assert body["notice"]
+    assert body["reply"].strip()
+    assert body["disclaimer"]
+    # the model field must not claim Gemini answered
+    assert body["model"] is None
+    # no raw provider error anywhere in what reaches the client
+    assert "quota exceeded" not in json.dumps(body)
+
+
+def test_upstream_503_also_falls_back(
+    client: TestClient, student_headers: dict, gemini_on, monkeypatch
+) -> None:
+    monkeypatch.setattr(gemini, "BASE_BACKOFF_SECONDS", 0.0)
+    patch_post(monkeypatch, [FakeResponse(503, {}, "unavailable")])
+    response = client.post(
+        "/api/assistant/chat",
+        json={"message": "What is automation bias?"},
+        headers=student_headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["provider"] == "rules (fallback)"
+
+
+def test_auth_failure_still_errors_and_does_not_fall_back(
+    client: TestClient, student_headers: dict, gemini_on, monkeypatch
+) -> None:
+    """A misconfigured deployment must stay loudly broken.
+
+    Quota is temporary; a rejected key is a fault someone has to fix. Hiding
+    it behind a working-looking answer would keep it hidden.
+    """
+    patch_post(monkeypatch, [FakeResponse(401, {}, "bad key")])
+    response = client.post(
+        "/api/assistant/chat",
+        json={"message": "What is automation bias?"},
+        headers=student_headers,
+    )
+    assert response.status_code == 503
+    assert "administrator" in response.json()["detail"].lower()
+    assert "bad key" not in response.json()["detail"]
 
 
 def test_message_length_is_capped(client: TestClient, student_headers: dict, gemini_on) -> None:
@@ -255,7 +332,12 @@ def sse(text: str) -> str:
 
 
 def patch_stream(monkeypatch, stream):
-    def fake_stream(self, method, url, json=None, headers=None):  # noqa: A002
+    """Same `TestClient`-vs-`httpx.Client` split as `patch_post`, for `.stream()`."""
+    real_stream = httpx.Client.stream
+
+    def fake_stream(self, method, url, *args, **kwargs):  # noqa: A002
+        if type(self) is not httpx.Client:
+            return real_stream(self, method, url, *args, **kwargs)
         return stream
 
     monkeypatch.setattr(httpx.Client, "stream", fake_stream)
@@ -327,3 +409,64 @@ def test_stream_respects_rate_limit(
 
 def test_stream_requires_authentication(client: TestClient) -> None:
     assert client.post("/api/assistant/chat/stream", json={"message": "Explain sepsis"}).status_code == 401
+
+
+def test_stream_429_falls_back_before_the_first_chunk(
+    client: TestClient, student_headers: dict, gemini_on, monkeypatch
+) -> None:
+    """The stream degrades to a complete offline answer, not an error frame."""
+    patch_stream(monkeypatch, FakeStream(429, [], "quota"))
+
+    with client.stream(
+        "POST",
+        "/api/assistant/chat/stream",
+        json={"message": "What is automation bias?"},
+        headers=student_headers,
+    ) as response:
+        assert response.status_code == 200
+        body = "".join(response.iter_text())
+
+    assert "event: error" not in body
+    assert "event: chunk" in body
+    assert "event: done" in body
+    assert "offline" in body
+
+    # persisted under the honest provider name
+    session_id = json.loads(
+        body.split("event: start\ndata: ")[1].split("\n")[0]
+    )["session_id"]
+    history = client.get(
+        f"/api/assistant/history/{session_id}", headers=student_headers
+    ).json()
+    answers = [row for row in history if row["role"] == "assistant"]
+    assert len(answers) == 1
+    assert answers[0]["content"].strip()
+
+
+def test_stream_failure_after_first_chunk_still_errors(
+    client: TestClient, student_headers: dict, gemini_on, monkeypatch
+) -> None:
+    """Never splice two answers together.
+
+    Once fragments have reached the client, a provider swap would join half a
+    Gemini answer to a whole rules answer. A partial answer that stops
+    honestly is better than a seamless one that is two answers.
+    """
+
+    class HalfwayStream(FakeStream):
+        def iter_lines(self):
+            yield sse("Automation bias is ")
+            raise gemini.GeminiRateLimited("quota mid-stream")
+
+    patch_stream(monkeypatch, HalfwayStream(200, []))
+
+    with client.stream(
+        "POST",
+        "/api/assistant/chat/stream",
+        json={"message": "What is automation bias?"},
+        headers=student_headers,
+    ) as response:
+        body = "".join(response.iter_text())
+
+    assert "event: error" in body
+    assert '"partial": true' in body.lower()

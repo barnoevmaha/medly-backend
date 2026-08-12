@@ -28,7 +28,7 @@ from app.models.social import Article, Resource
 from app.models.user import User
 from app.security import get_current_user
 from app.services import ratelimit, safety, scope
-from app.services.assistant import get_provider, suggested_prompts
+from app.services.assistant import RuleBasedProvider, get_provider, suggested_prompts
 from app.services.audit import log_event
 from app.services.gemini import (
     GeminiError,
@@ -41,6 +41,30 @@ logger = logging.getLogger("medly.assistant")
 router = APIRouter(prefix="/api/assistant", tags=["assistant"])
 
 HISTORY_TURNS = settings.ai_history_turns
+
+# Shown when the paid provider was out of capacity and the offline engine
+# answered instead. It names the degradation rather than hiding it: a student
+# who gets a narrower answer than usual should know why, and an assessor
+# reading the audit trail should see that the row says "rules", not "gemini".
+def _chunk_for_stream(text: str, size: int = 24) -> List[str]:
+    """Break a complete answer into SSE-sized pieces.
+
+    The offline engine returns its answer whole, but the client is a streaming
+    client: handing it one enormous chunk would render as a paragraph
+    appearing instantly, which reads as a different feature rather than a
+    degraded one. Splitting on whitespace keeps words intact.
+    """
+    words = text.split(" ")
+    return [
+        " ".join(words[i:i + size]) + (" " if i + size < len(words) else "")
+        for i in range(0, len(words), size)
+    ] or [text]
+
+
+FALLBACK_NOTICE = (
+    "Medly AI is busy right now, so this answer came from the offline "
+    "safety engine. The same screening and disclaimer rules apply."
+)
 
 # Process-wide. Both are per user, and both exist because the AI path is the
 # only endpoint here that costs money per call.
@@ -198,6 +222,10 @@ class ChatResponse(BaseModel):
     provider: str
     audit_event_id: Optional[int] = None
     model: Optional[str] = None
+    # Set only when the paid provider was unreachable and the offline rules
+    # engine answered instead. The client shows it as a small line under the
+    # answer; older clients ignore an unknown field, so this is additive.
+    notice: Optional[str] = None
 
 
 class MessageOut(BaseModel):
@@ -361,6 +389,7 @@ def chat(
 
         provider = get_provider()
         started = time.monotonic()
+        notice: Optional[str] = None
         try:
             result = provider.reply(verdict.redacted_text, history, context, lang)
         except GeminiError as exc:
@@ -369,10 +398,31 @@ def chat(
                 "assistant provider failed user=%s provider=%s error=%s",
                 user.id, settings.assistant_provider, exc.detail,
             )
-            status = 429 if isinstance(exc, GeminiRateLimited) else 503
-            if not isinstance(exc, (GeminiRateLimited, GeminiUnavailable)):
-                status = 503
-            raise HTTPException(status_code=status, detail=exc.user_message) from exc
+            # Being out of quota is not a reason to show a student an error.
+            # Rate limiting and provider outage are temporary and say nothing
+            # about the question, so the offline engine answers instead.
+            # Nothing that makes an answer safe is skipped: the message was
+            # screened and redacted before this point, and the disclaimer is
+            # applied below on the same path as any other answer.
+            #
+            # Configuration failures are deliberately not caught here. A wrong
+            # key, a missing model or an unconfigured provider is a deployment
+            # fault, and degrading it silently would hide that fault for as
+            # long as nobody reads a log.
+            if isinstance(exc, (GeminiRateLimited, GeminiUnavailable)):
+                logger.warning(
+                    "assistant falling back to rules user=%s reason=%s",
+                    user.id, type(exc).__name__,
+                )
+                result = RuleBasedProvider().reply(
+                    verdict.redacted_text, history, context, lang
+                )
+                result.provider = f"{result.provider} (fallback)"
+                notice = FALLBACK_NOTICE
+            else:
+                raise HTTPException(
+                    status_code=503, detail=exc.user_message
+                ) from exc
         except Exception as exc:  # noqa: BLE001 - never leak a provider traceback
             logger.exception("assistant provider crashed user=%s", user.id)
             raise HTTPException(
@@ -384,7 +434,7 @@ def chat(
         logger.info(
             "assistant reply user=%s provider=%s latency_ms=%d chars=%d context=%s",
             user.id, result.provider, latency_ms, len(result.content),
-            f"{kind or '-'}:{key or '-'}",
+            f"{ctx_kind or '-'}:{ctx_key or '-'}",
         )
     finally:
         _in_flight.release(key)
@@ -425,6 +475,7 @@ def chat(
         provider=result.provider,
         audit_event_id=event.id,
         model=settings.gemini_model if result.provider.startswith("gemini") else None,
+        notice=notice,
     )
 
 
@@ -778,14 +829,47 @@ def chat_stream(
             interrupted = True
             raise
         except GeminiError as exc:
-            interrupted = True
             logger.error(
                 "assistant stream failed user=%s chars=%d error=%s",
                 user_id, sum(len(c) for c in collected), exc.detail,
             )
-            yield _sse(
-                "error", {"detail": exc.user_message, "partial": bool(collected)}
-            )
+            # Same reasoning as the non-streaming path: a capacity failure
+            # degrades to the offline engine rather than surfacing an error.
+            #
+            # The `not collected` guard matters. Once fragments have reached
+            # the client, swapping providers would splice the first half of a
+            # Gemini answer onto the whole of a rules answer, and the student
+            # would read one incoherent paragraph. A partial answer that stops
+            # honestly is better than a seamless one that is two answers.
+            if isinstance(exc, (GeminiRateLimited, GeminiUnavailable)) and not collected:
+                logger.warning(
+                    "assistant stream falling back to rules user=%s reason=%s",
+                    user_id, type(exc).__name__,
+                )
+                provider_name = "rules (fallback)"
+                fallback = RuleBasedProvider().reply(
+                    question_text, history, context, lang
+                )
+                for piece in _chunk_for_stream(fallback.content):
+                    collected.append(piece)
+                    yield _sse("chunk", {"text": piece})
+                yield _sse(
+                    "done",
+                    {
+                        "session_id": session_id,
+                        "blocked": False,
+                        "risk_level": risk_level.value,
+                        "disclaimer": settings.disclaimer,
+                        "model": None,
+                        "notice": FALLBACK_NOTICE,
+                        "interrupted": False,
+                    },
+                )
+            else:
+                interrupted = True
+                yield _sse(
+                    "error", {"detail": exc.user_message, "partial": bool(collected)}
+                )
         except Exception:  # noqa: BLE001 - never leak a traceback into the stream
             interrupted = True
             logger.exception("assistant stream crashed user=%s", user_id)
