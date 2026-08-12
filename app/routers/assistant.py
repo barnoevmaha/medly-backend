@@ -20,6 +20,7 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.db import engine, get_session
+from app.lang import get_lang
 from app.models.assistant import AssistantMessage
 from app.models.enums import EventType, RiskLevel
 from app.models.challenge import Challenge
@@ -66,14 +67,20 @@ def _record_refusal(
     session_id: str,
     user_id: int,
     reason: str,
+    lang: str = "en",
 ) -> Optional[int]:
-    """Persist an out-of-scope refusal and audit it. No provider is called."""
+    """Persist an out-of-scope refusal and audit it. No provider is called.
+
+    Stored in the language the student was shown, so their transcript reads
+    back the way they experienced it. `ai_output_summary` stays English: the
+    audit log is read by staff across locales and must stay comparable.
+    """
     session.add(
         AssistantMessage(
             session_id=session_id,
             user_id=user_id,
             role="assistant",
-            content=scope.REFUSAL,
+            content=scope.refusal_for(lang),
             risk_level=RiskLevel.NONE,
             blocked=True,
             block_reason=f"out of scope: {reason}",
@@ -213,6 +220,7 @@ def chat(
     response: Response,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> ChatResponse:
     session_id = payload.session_id or str(uuid.uuid4())
 
@@ -314,11 +322,15 @@ def chat(
             "assistant refused out of scope user=%s reason=%s", user.id, in_scope.reason
         )
         event_id = _record_refusal(
-            session, session_id=session_id, user_id=user.id or 0, reason=in_scope.reason
+            session,
+            session_id=session_id,
+            user_id=user.id or 0,
+            reason=in_scope.reason,
+            lang=lang,
         )
         return ChatResponse(
             session_id=session_id,
-            reply=scope.REFUSAL,
+            reply=scope.refusal_for(lang),
             blocked=True,
             block_reason="out of scope",
             risk_level=RiskLevel.NONE,
@@ -350,7 +362,7 @@ def chat(
         provider = get_provider()
         started = time.monotonic()
         try:
-            result = provider.reply(verdict.redacted_text, history, context)
+            result = provider.reply(verdict.redacted_text, history, context, lang)
         except GeminiError as exc:
             # The detail goes to the log; only `user_message` reaches the client.
             logger.error(
@@ -377,7 +389,7 @@ def chat(
     finally:
         _in_flight.release(key)
 
-    answer = safety.apply_disclaimer(result.content, verdict.risk_level)
+    answer = safety.apply_disclaimer(result.content, verdict.risk_level, lang)
 
     session.add(
         AssistantMessage(
@@ -481,6 +493,7 @@ def _persist_answer(
     text: str,
     provider: str,
     interrupted: bool,
+    lang: str = "en",
 ) -> None:
     """Save the finished answer as ONE row and write the audit entry.
 
@@ -494,7 +507,7 @@ def _persist_answer(
     also why this takes plain ints and strings rather than a `User` row.
     """
     session = Session(engine)
-    answer = safety.apply_disclaimer(text, risk_level)
+    answer = safety.apply_disclaimer(text, risk_level, lang)
     session.add(
         AssistantMessage(
             session_id=session_id,
@@ -528,6 +541,7 @@ def chat_stream(
     response: Response,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ):
     """Server-Sent Events: the same answer, forwarded as Gemini writes it.
 
@@ -654,12 +668,16 @@ def chat_stream(
             user.id, in_scope.reason,
         )
         _record_refusal(
-            session, session_id=session_id, user_id=user.id or 0, reason=in_scope.reason
+            session,
+            session_id=session_id,
+            user_id=user.id or 0,
+            reason=in_scope.reason,
+            lang=lang,
         )
 
         def out_of_scope():
             yield _sse("start", {"session_id": session_id})
-            yield _sse("chunk", {"text": scope.REFUSAL})
+            yield _sse("chunk", {"text": scope.refusal_for(lang)})
             yield _sse(
                 "done",
                 {
@@ -726,7 +744,7 @@ def chat_stream(
             yield _sse("start", {"session_id": session_id})
             mark("start frame")
 
-            for fragment in provider.stream(question_text, history, context):
+            for fragment in provider.stream(question_text, history, context, lang):
                 collected.append(fragment)
                 frames += 1
                 if first_frame_at is None:
@@ -792,6 +810,7 @@ def chat_stream(
                         text=final,
                         provider=provider_name,
                         interrupted=interrupted,
+                        lang=lang,
                     )
                 except Exception:  # noqa: BLE001
                     logger.exception("assistant stream: could not persist answer")

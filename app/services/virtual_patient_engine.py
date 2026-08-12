@@ -171,21 +171,34 @@ def options_for(session: Session, stage_id: int) -> List[VirtualPatientOption]:
     )
 
 
-def stage_view(session: Session, stage: VirtualPatientStage) -> StageView:
+def stage_view(session: Session, stage: VirtualPatientStage, lang: str = "en") -> StageView:
+    """The student-facing shape of a stage, in `lang`.
+
+    `localize.read` is a plain attribute lookup with an English fallback — no
+    network, no model, nothing that could fail or take time. Translation is
+    filled in beforehand by the router; this only chooses which column to
+    read, which keeps the engine as deterministic as it was.
+    """
+    from app.services import localize
+
     return StageView(
         key=stage.key,
         kind=stage.kind,
-        title=stage.title,
-        narrative=stage.narrative,
-        patient_line=stage.patient_line,
-        clinical_note=stage.clinical_note,
-        prompt=stage.prompt,
+        title=localize.read(stage, "title", lang),
+        narrative=localize.read(stage, "narrative", lang),
+        patient_line=localize.read(stage, "patient_line", lang),
+        clinical_note=localize.read(stage, "clinical_note", lang),
+        prompt=localize.read(stage, "prompt", lang),
         is_terminal=stage.is_terminal,
         outcome=stage.outcome,
         options=[
             # `is_correct` is deliberately absent: the answer key never
             # crosses the wire before the student has chosen.
-            OptionView(key=o.key, label=o.label, detail=o.detail)
+            OptionView(
+                key=o.key,
+                label=localize.read(o, "label", lang),
+                detail=localize.read(o, "detail", lang),
+            )
             for o in options_for(session, stage.id or 0)
         ],
     )
@@ -251,6 +264,7 @@ def submit_decision(
     case: VirtualPatientCase,
     stage_key: str,
     option_key: str,
+    lang: str = "en",
 ) -> DecisionResult:
     """Apply one choice. Every consequence below is authored, not inferred."""
     if run.status != SessionStatus.IN_PROGRESS.value:
@@ -352,15 +366,19 @@ def submit_decision(
     session.commit()
     session.refresh(run)
 
+    from app.services import localize
+
     return DecisionResult(
         was_correct=chosen.is_correct,
         was_harmful=chosen.is_harmful,
         score_delta=chosen.score_delta,
-        feedback=chosen.feedback,
+        # The verdict is the engine's; only the wording of the teaching point
+        # follows the reader's language.
+        feedback=localize.read(chosen, "feedback", lang),
         state_before=state_before,
         state_after=state_after,
         vitals=vitals,
-        next_stage=stage_view(session, next_stage),
+        next_stage=stage_view(session, next_stage, lang),
         finished=finished,
         outcome=run.outcome,
     )

@@ -16,13 +16,12 @@ Russian. Nothing about content translation is authored by hand.
 """
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from typing import Sequence
 
 from sqlmodel import Session
 
-from app.services.translate import translate_text
+from app.services import medical_translate
 
 SUPPORTED_TARGETS = {"ru", "uz"}
 
@@ -103,18 +102,22 @@ def ensure_fields(session: Session, refs: Sequence[FieldRef], lang: str) -> None
     if not pending:
         return
 
-    with ThreadPoolExecutor(max_workers=min(12, len(pending))) as pool:
-        results = list(
-            pool.map(lambda item: translate_text(item[2], lang), pending)
-        )
+    # One batched call rather than a thread pool of one-string requests. The
+    # strings on a page belong to the same case, so translating them together
+    # is cheaper *and* more consistent — the model sees that "the patient" in
+    # the prompt and "the patient" in the option label are the same patient.
+    # medical_translate never raises and always returns the same number of
+    # strings; anything it could not do safely comes back as the English.
+    translated_values = medical_translate.translate_batch(
+        [source for _obj, _attr, source in pending], lang
+    )
 
-    for (obj, target_attr, source), translated in zip(pending, results):
+    for (obj, target_attr, source), translated in zip(pending, translated_values):
         setattr(obj, target_attr, translated)
         session.add(obj)
-        # translate_text never raises: a provider outage returns the source
-        # text unchanged, which then gets cached and looks translated forever.
-        # Long phrases that come back byte-identical are that failure, near
-        # enough, so the viewer is told the page is partly English.
+        # A long phrase that comes back byte-identical is a translation that
+        # was refused or failed — cached now, it would look translated
+        # forever, so the viewer is told the page is partly English instead.
         if translated == source and len(source) >= _MEANINGFUL_LENGTH:
             note_fallback()
     session.commit()

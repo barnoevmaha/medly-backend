@@ -138,13 +138,35 @@ def screen_message(text: str) -> SafetyVerdict:
     )
 
 
-def apply_disclaimer(answer: str, risk: RiskLevel) -> str:
+# The caveat that goes under every AI answer, authored per locale. Ending a
+# Russian answer with an English disclaimer would undo the localisation in the
+# last line of every single response.
+#
+# `settings.disclaimer` remains the English text and remains configurable; a
+# deployment that overrides it gets its own wording in English and the
+# authored translations elsewhere, which is the honest behaviour — this module
+# cannot translate an arbitrary operator-supplied string on the hot path.
+_DISCLAIMER_BY_LANG = {
+    "ru": "Это учебный материал, а не медицинская рекомендация.",
+    "uz": "Bu oʻquv materiali, tibbiy maslahat emas.",
+}
+_VERIFY_BY_LANG = {
+    "en": "**Verify before you rely on this.**",
+    "ru": "**Проверьте, прежде чем полагаться на это.**",
+    "uz": "**Bunga tayanishdan oldin tekshiring.**",
+}
+
+
+def disclaimer_for(lang: str) -> str:
+    return _DISCLAIMER_BY_LANG.get(lang, settings.disclaimer)
+
+
+def apply_disclaimer(answer: str, risk: RiskLevel, lang: str = "en") -> str:
     """Rule 3. Every output carries a caveat; higher risk gets a louder one."""
+    text = disclaimer_for(lang)
     if risk in (RiskLevel.HIGH, RiskLevel.MEDIUM):
-        return (
-            f"{answer}\n\n---\n**Verify before you rely on this.** {settings.disclaimer}"
-        )
-    return f"{answer}\n\n---\n_{settings.disclaimer}_"
+        return f"{answer}\n\n---\n{_VERIFY_BY_LANG.get(lang, _VERIFY_BY_LANG['en'])} {text}"
+    return f"{answer}\n\n---\n_{text}_"
 
 
 def evaluate_confidence(confidences: List[float]) -> Tuple[float, bool, bool]:

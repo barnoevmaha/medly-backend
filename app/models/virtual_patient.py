@@ -53,6 +53,29 @@ class VirtualPatientCase(SQLModel, table=True):
     learning_objectives: str = Field(default="")
     debrief_md: str = Field(default="")
 
+    # --- translations -----------------------------------------------------
+    # Same convention as Article, Community and Challenge: the English column
+    # is canonical, the siblings start empty and are filled on first view in
+    # that language by localize.ensure_fields, then cached forever. Adding a
+    # case in any way — seed, import, a future generator — needs no work here.
+    #
+    # `specialty` and `difficulty` are deliberately absent: they are closed
+    # vocabularies rendered from i18n keys on the client, not free text.
+    title_ru: str = Field(default="")
+    title_uz: str = Field(default="")
+    summary_ru: str = Field(default="")
+    summary_uz: str = Field(default="")
+    presenting_complaint_ru: str = Field(default="")
+    presenting_complaint_uz: str = Field(default="")
+    patient_brief_ru: str = Field(default="")
+    patient_brief_uz: str = Field(default="")
+    correct_diagnosis_ru: str = Field(default="")
+    correct_diagnosis_uz: str = Field(default="")
+    learning_objectives_ru: str = Field(default="")
+    learning_objectives_uz: str = Field(default="")
+    debrief_md_ru: str = Field(default="")
+    debrief_md_uz: str = Field(default="")
+
     # A run at or above this fraction of the available score passes.
     pass_ratio: float = Field(default=0.6)
 
@@ -93,6 +116,22 @@ class VirtualPatientStage(SQLModel, table=True):
     is_terminal: bool = Field(default=False)
     outcome: str = Field(default="")  # good | acceptable | poor
 
+    # --- translations -----------------------------------------------------
+    # `patient_line` is translated too, even though Gemini usually rephrases
+    # it live: the translation is what a student sees when the model is down,
+    # and an English fallback line inside a Russian case is exactly the mixed
+    # output this is meant to remove.
+    title_ru: str = Field(default="")
+    title_uz: str = Field(default="")
+    narrative_ru: str = Field(default="")
+    narrative_uz: str = Field(default="")
+    patient_line_ru: str = Field(default="")
+    patient_line_uz: str = Field(default="")
+    clinical_note_ru: str = Field(default="")
+    clinical_note_uz: str = Field(default="")
+    prompt_ru: str = Field(default="")
+    prompt_uz: str = Field(default="")
+
 
 class VirtualPatientOption(SQLModel, table=True):
     """One edge. Carries the verdict — the model never supplies it."""
@@ -121,6 +160,14 @@ class VirtualPatientOption(SQLModel, table=True):
     next_stage_key: str = Field(default="")
     # Authored teaching point, shown immediately after the choice.
     feedback: str = Field(default="")
+
+    # --- translations -----------------------------------------------------
+    label_ru: str = Field(default="")
+    label_uz: str = Field(default="")
+    detail_ru: str = Field(default="")
+    detail_uz: str = Field(default="")
+    feedback_ru: str = Field(default="")
+    feedback_uz: str = Field(default="")
 
 
 class VirtualPatientSession(SQLModel, table=True):

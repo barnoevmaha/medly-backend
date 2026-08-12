@@ -26,6 +26,12 @@ class Course(SQLModel, table=True):
     published: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    # Filled on first view in that language by localize.ensure_fields.
+    title_ru: str = Field(default="")
+    title_uz: str = Field(default="")
+    summary_ru: str = Field(default="")
+    summary_uz: str = Field(default="")
+
 
 class Lesson(SQLModel, table=True):
     __tablename__ = "lessons"
@@ -39,6 +45,13 @@ class Lesson(SQLModel, table=True):
     body_md: str = Field(default="")
     # Key takeaway rendered as a highlighted callout in the UI.
     key_point: Optional[str] = None
+
+    title_ru: str = Field(default="")
+    title_uz: str = Field(default="")
+    body_md_ru: str = Field(default="")
+    body_md_uz: str = Field(default="")
+    key_point_ru: str = Field(default="")
+    key_point_uz: str = Field(default="")
 
 
 class Enrollment(SQLModel, table=True):

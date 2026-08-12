@@ -29,10 +29,32 @@ import re
 from dataclasses import dataclass
 from typing import Iterable, List, Optional
 
-REFUSAL = (
-    "I'm Medly AI, a medical learning assistant. I can only help with medical "
-    "education, medical topics, and Medly learning materials."
-)
+# Authored per locale, not machine-translated. This is the one sentence a
+# student sees when the assistant declines, it never varies, and a refusal
+# arriving in English to someone reading Russian reads as a system that does
+# not know who it is talking to.
+REFUSAL_BY_LANG = {
+    "en": (
+        "I'm Medly AI, a medical learning assistant. I can only help with medical "
+        "education, medical topics, and Medly learning materials."
+    ),
+    "ru": (
+        "Я Medly AI, помощник по медицинскому обучению. Я могу помочь только с "
+        "медицинским образованием, медицинскими темами и учебными материалами Medly."
+    ),
+    "uz": (
+        "Men Medly AI — tibbiy taʼlim yordamchisiman. Men faqat tibbiy taʼlim, "
+        "tibbiy mavzular va Medly oʻquv materiallari boʻyicha yordam bera olaman."
+    ),
+}
+
+# The English wording, kept under its original name: it is asserted verbatim
+# in tests and referenced elsewhere.
+REFUSAL = REFUSAL_BY_LANG["en"]
+
+
+def refusal_for(lang: str) -> str:
+    return REFUSAL_BY_LANG.get(lang, REFUSAL)
 
 
 def _words(*groups: Iterable[str]) -> re.Pattern:

@@ -16,6 +16,12 @@ class Quiz(SQLModel, table=True):
     description: str = Field(default="")
     passing_score: int = Field(default=80)
 
+    # Filled on first view in that language by localize.ensure_fields.
+    title_ru: str = Field(default="")
+    title_uz: str = Field(default="")
+    description_ru: str = Field(default="")
+    description_uz: str = Field(default="")
+
 
 class Question(SQLModel, table=True):
     __tablename__ = "questions"
@@ -29,6 +35,11 @@ class Question(SQLModel, table=True):
     explanation: str = Field(default="")
     points: int = Field(default=1)
 
+    prompt_ru: str = Field(default="")
+    prompt_uz: str = Field(default="")
+    explanation_ru: str = Field(default="")
+    explanation_uz: str = Field(default="")
+
 
 class Choice(SQLModel, table=True):
     __tablename__ = "choices"
@@ -38,6 +49,9 @@ class Choice(SQLModel, table=True):
     order: int = Field(default=0)
     text: str
     is_correct: bool = Field(default=False)
+
+    text_ru: str = Field(default="")
+    text_uz: str = Field(default="")
 
 
 class QuizAttempt(SQLModel, table=True):

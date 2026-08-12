@@ -9,6 +9,7 @@ cannot opt out of the disclaimer or the audit trail.
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Protocol
 
@@ -118,7 +119,71 @@ class AssistantProvider(Protocol):
         message: str,
         history: List[Dict[str, str]],
         context: Optional[str] = None,
+        lang: str = "en",
     ) -> AssistantReply: ...
+
+
+# --------------------------------------------------------------------------
+# Language
+#
+# Chat is the case for generating directly in the target language rather than
+# translating: the answer is read once, so storing three versions would be
+# waste, and a model composing in Russian writes Russian rather than
+# translated English.
+#
+# The instruction goes in the system prompt, not the user turn, and says to
+# ignore the language of the question. Inferring it from the message is the
+# obvious shortcut and it is wrong: a Russian-speaking student who types a
+# drug name in English, or pastes an English abstract, would get an English
+# answer they did not ask for. Settings is the single source of truth.
+# --------------------------------------------------------------------------
+
+LANGUAGE_RULES = {
+    "en": "",
+    "ru": (
+        "\n\nLANGUAGE\nAlways answer in Russian, in natural idiomatic Russian "
+        "rather than a translation of English phrasing, using standard Russian "
+        "clinical terminology. Answer in Russian even when the student writes "
+        "in English or quotes English material — their display language is "
+        "Russian and that is what they read. Keep drug names, units and "
+        "abbreviations in their standard form."
+    ),
+    "uz": (
+        "\n\nLANGUAGE\nAlways answer in Uzbek, Latin script, in natural "
+        "idiomatic Uzbek rather than a translation of English phrasing. Use "
+        "the correct orthography: oʻ and gʻ, and ʼ for the glottal stop "
+        "(maʼlumot, taʼlim). Where Uzbek clinical practice uses an "
+        "international term (pnevmoniya, sepsis, diagnoz), use it rather than "
+        "inventing a calque. Answer in Uzbek even when the student writes in "
+        "English or Russian — their display language is Uzbek and that is what "
+        "they read. Keep drug names, units and abbreviations in their standard "
+        "form."
+    ),
+}
+
+
+def with_language(system_prompt: str, lang: str) -> str:
+    """Append the language rule, and restate the refusal in that language.
+
+    MEDLY_AI_SYSTEM_PROMPT tells the model to answer an out-of-scope question
+    with one exact English sentence. `services.scope` normally intercepts
+    those before a model is ever called, but when one slips through, the
+    refusal has to arrive in the language the student reads — otherwise the
+    one reply guaranteed to be in English is the one saying Medly AI only
+    talks about medicine.
+    """
+    rule = LANGUAGE_RULES.get(lang, "")
+    if not rule:
+        return system_prompt
+
+    from app.services.scope import refusal_for
+
+    return (
+        system_prompt
+        + rule
+        + "\n\nWhen refusing an out-of-scope question, reply with exactly this "
+        f"sentence and nothing else:\n\"{refusal_for(lang)}\""
+    )
 
 
 # --------------------------------------------------------------------------
@@ -257,6 +322,26 @@ FALLBACK = (
 )
 
 
+@lru_cache(maxsize=256)
+def _localized_canned(text: str, lang: str) -> str:
+    """Translate one of the fixed offline answers, once per process.
+
+    KNOWLEDGE is a closed set of about a dozen entries, so this cache is
+    naturally bounded and each answer is translated at most once per language
+    per process — it is not a per-request translation on the hot path.
+
+    This provider is the no-API-key default, in which case the translator has
+    no key either and degrades to the keyless endpoint, and then to English.
+    A canned answer in English is a worse outcome than a translated one and a
+    better one than an error.
+    """
+    if lang == "en":
+        return text
+    from app.services import medical_translate
+
+    return medical_translate.translate_one(text, lang)
+
+
 class RuleBasedProvider:
     """Deterministic, offline, no API key. The default."""
 
@@ -267,6 +352,7 @@ class RuleBasedProvider:
         message: str,
         history: List[Dict[str, str]],
         context: Optional[str] = None,
+        lang: str = "en",
     ) -> AssistantReply:
         text = message.lower()
         best: Optional[Dict[str, object]] = None
@@ -290,7 +376,7 @@ class RuleBasedProvider:
                     best_score, best = overlap, entry
 
         content = str(best["answer"]) if best else FALLBACK
-        return AssistantReply(content=content, provider=self.name)
+        return AssistantReply(content=_localized_canned(content, lang), provider=self.name)
 
 
 class AnthropicProvider:
@@ -303,6 +389,7 @@ class AnthropicProvider:
         message: str,
         history: List[Dict[str, str]],
         context: Optional[str] = None,
+        lang: str = "en",
     ) -> AssistantReply:
         try:
             import anthropic  # imported lazily so the default path needs no dependency
@@ -310,7 +397,8 @@ class AnthropicProvider:
             raise RuntimeError("pip install anthropic to use this provider") from exc
 
         client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-        system = SYSTEM_PROMPT if not context else f"{SYSTEM_PROMPT}\n\n{context}"
+        base = with_language(SYSTEM_PROMPT, lang)
+        system = base if not context else f"{base}\n\n{context}"
         messages = [{"role": m["role"], "content": m["content"]} for m in history]
         messages.append({"role": "user", "content": message})
         response = client.messages.create(
@@ -332,6 +420,7 @@ class OpenAIProvider:
         message: str,
         history: List[Dict[str, str]],
         context: Optional[str] = None,
+        lang: str = "en",
     ) -> AssistantReply:
         try:
             from openai import OpenAI  # imported lazily
@@ -339,7 +428,8 @@ class OpenAIProvider:
             raise RuntimeError("pip install openai to use this provider") from exc
 
         client = OpenAI(api_key=settings.openai_api_key)
-        system = SYSTEM_PROMPT if not context else f"{SYSTEM_PROMPT}\n\n{context}"
+        base = with_language(SYSTEM_PROMPT, lang)
+        system = base if not context else f"{base}\n\n{context}"
         messages = [{"role": "system", "content": system}]
         messages.extend({"role": m["role"], "content": m["content"]} for m in history)
         messages.append({"role": "user", "content": message})
@@ -367,12 +457,13 @@ class GeminiProvider:
         message: str,
         history: List[Dict[str, str]],
         context: Optional[str] = None,
+        lang: str = "en",
     ) -> AssistantReply:
         from app.services import gemini  # imported lazily, like the others
 
-        system = MEDLY_AI_SYSTEM_PROMPT
+        system = with_language(MEDLY_AI_SYSTEM_PROMPT, lang)
         if context:
-            system = f"{MEDLY_AI_SYSTEM_PROMPT}\n\n{context}"
+            system = f"{system}\n\n{context}"
 
         result = gemini.generate(
             system_prompt=system,
@@ -386,13 +477,14 @@ class GeminiProvider:
         message: str,
         history: List[Dict[str, str]],
         context: Optional[str] = None,
+        lang: str = "en",
     ):
         """Yield fragments as they arrive. Same prompt, same key, same limits."""
         from app.services import gemini
 
-        system = MEDLY_AI_SYSTEM_PROMPT
+        system = with_language(MEDLY_AI_SYSTEM_PROMPT, lang)
         if context:
-            system = f"{MEDLY_AI_SYSTEM_PROMPT}\n\n{context}"
+            system = f"{system}\n\n{context}"
 
         return gemini.generate_stream(
             system_prompt=system,

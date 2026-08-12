@@ -10,11 +10,13 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.db import get_session
+from app.lang import get_lang
 from app.models.course import Course
 from app.models.enums import EventType, RiskLevel
 from app.models.quiz import Choice, Question, Quiz, QuizAttempt
 from app.models.user import User
 from app.security import get_current_user
+from app.services import localize
 from app.services.audit import log_event
 from app.services.gamification import sync_badges, touch_streak
 from app.services.scoring import competency_band, grade
@@ -83,18 +85,20 @@ def quizzes_for_course(
     course_slug: str,
     session: Session = Depends(get_session),
     _: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> List[QuizOut]:
     course = session.exec(select(Course).where(Course.slug == course_slug)).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
     quizzes = session.exec(select(Quiz).where(Quiz.course_id == course.id)).all()
-    return [_quiz_out(session, quiz) for quiz in quizzes]
+    return [_quiz_out(session, quiz, lang) for quiz in quizzes]
 
 
 @router.get("/attempts/me", response_model=List[AttemptOut])
 def my_attempts(
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> List[AttemptOut]:
     attempts = session.exec(
         select(QuizAttempt)
@@ -108,7 +112,7 @@ def my_attempts(
             AttemptOut(
                 id=attempt.id or 0,
                 quiz_id=attempt.quiz_id,
-                quiz_title=quiz.title if quiz else None,
+                quiz_title=localize.read(quiz, "title", lang) if quiz else None,
                 score=attempt.score,
                 passed=attempt.passed,
                 submitted_at=attempt.submitted_at,
@@ -120,38 +124,63 @@ def get_quiz(
     quiz_id: int,
     session: Session = Depends(get_session),
     _: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> QuizOut:
     quiz = session.get(Quiz, quiz_id)
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
-    return _quiz_out(session, quiz)
+    return _quiz_out(session, quiz, lang)
 
 
-def _quiz_out(session: Session, quiz: Quiz) -> QuizOut:
-    """Serialise a quiz. Correct answers are never included in the payload."""
-    questions = session.exec(
-        select(Question).where(Question.quiz_id == quiz.id).order_by(Question.order)
-    ).all()
+def _quiz_out(session: Session, quiz: Quiz, lang: str = "en") -> QuizOut:
+    """Serialise a quiz. Correct answers are never included in the payload.
+
+    Every question and choice is translated in one batch before serialising,
+    so a quiz costs one translation the first time it is opened in a language
+    and nothing on every view after that.
+    """
+    questions = list(
+        session.exec(
+            select(Question).where(Question.quiz_id == quiz.id).order_by(Question.order)
+        ).all()
+    )
+    all_choices = {
+        question.id or 0: list(
+            session.exec(
+                select(Choice)
+                .where(Choice.question_id == question.id)
+                .order_by(Choice.order)
+            ).all()
+        )
+        for question in questions
+    }
+
+    refs = localize.fields_for([quiz], ("title", "description"))
+    refs += localize.fields_for(questions, ("prompt", "explanation"))
+    for choices in all_choices.values():
+        refs += localize.fields_for(choices, ("text",))
+    localize.ensure_fields(session, refs, lang)
+
     out_questions: List[QuestionOut] = []
     for question in questions:
-        choices = session.exec(
-            select(Choice).where(Choice.question_id == question.id).order_by(Choice.order)
-        ).all()
         out_questions.append(
             QuestionOut(
                 id=question.id or 0,
                 order=question.order,
-                prompt=question.prompt,
+                prompt=localize.read(question, "prompt", lang),
                 kind=question.kind,
                 points=question.points,
-                choices=[ChoiceOut(id=c.id or 0, text=c.text) for c in choices],
+                choices=[
+                    ChoiceOut(id=c.id or 0, text=localize.read(c, "text", lang))
+                    for c in all_choices[question.id or 0]
+                ],
             )
         )
     return QuizOut(
         id=quiz.id or 0,
         course_id=quiz.course_id,
-        title=quiz.title,
-        description=quiz.description,
+        title=localize.read(quiz, "title", lang),
+        description=localize.read(quiz, "description", lang),
         passing_score=quiz.passing_score,
         questions=out_questions,
     )
@@ -163,6 +192,7 @@ def submit(
     payload: SubmitRequest,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
+    lang: str = Depends(get_lang),
 ) -> SubmitResponse:
     quiz = session.get(Quiz, quiz_id)
     if not quiz:
@@ -183,6 +213,20 @@ def submit(
         )
 
     outcome = grade(questions, choices_by_question, payload.answers)
+
+    # `grade` is the marking logic and stays language-blind: it reads the
+    # canonical column. The explanation shown afterwards is presentation, so
+    # it is swapped for the reader's language here rather than teaching the
+    # scorer about locales. Marks are unaffected either way.
+    localize.ensure_fields(
+        session, localize.fields_for(list(questions), ("explanation",)), lang
+    )
+    by_id = {q.id: q for q in questions}
+    for result in outcome["results"]:
+        question = by_id.get(result["question_id"])
+        if question is not None:
+            result["explanation"] = localize.read(question, "explanation", lang)
+
     score = int(outcome["score"])
     passed = score >= quiz.passing_score
 

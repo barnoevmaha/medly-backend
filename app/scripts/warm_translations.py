@@ -38,7 +38,14 @@ from sqlmodel import Session, select
 from app.db import engine, init_db
 from app.models.challenge import Challenge, ChallengeChoice, ChallengeQuestion
 from app.models.community import Community
+from app.models.course import Course, Lesson
+from app.models.quiz import Choice, Question, Quiz
 from app.models.social import Article, Resource
+from app.models.virtual_patient import (
+    VirtualPatientCase,
+    VirtualPatientOption,
+    VirtualPatientStage,
+)
 from app.services import localize
 
 # Every model with `_ru`/`_uz` columns, and the fields the routers actually
@@ -52,6 +59,32 @@ TARGETS: Sequence[tuple[type, tuple[str, ...]]] = (
     (ChallengeQuestion, ("prompt", "explanation")),
     (ChallengeChoice, ("text",)),
     (Resource, ("description",)),
+    # Virtual Patient. A case has more translatable text than anything else
+    # on the platform — brief, every stage, every option, every teaching
+    # point — and it is read mid-simulation, where a pause is worst.
+    (
+        VirtualPatientCase,
+        (
+            "title",
+            "summary",
+            "presenting_complaint",
+            "patient_brief",
+            "correct_diagnosis",
+            "learning_objectives",
+            "debrief_md",
+        ),
+    ),
+    (
+        VirtualPatientStage,
+        ("title", "narrative", "patient_line", "clinical_note", "prompt"),
+    ),
+    (VirtualPatientOption, ("label", "detail", "feedback")),
+    # Curriculum.
+    (Course, ("title", "summary")),
+    (Lesson, ("title", "body_md", "key_point")),
+    (Quiz, ("title", "description")),
+    (Question, ("prompt", "explanation")),
+    (Choice, ("text",)),
 )
 
 # Matches localize._MEANINGFUL_LENGTH: below this, identical is not evidence.

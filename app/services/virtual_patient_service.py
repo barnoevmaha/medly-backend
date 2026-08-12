@@ -25,6 +25,44 @@ from app.services import gemini
 logger = logging.getLogger("medly.virtual_patient")
 
 
+# --------------------------------------------------------------------------
+# Language
+#
+# These two functions produce prose that is read once and thrown away, so the
+# model writes directly in the reader's language instead of writing English
+# that something else then translates. That is both cheaper and better: a
+# model composing in Russian produces Russian, where a translator produces
+# translated English.
+#
+# The instruction is appended to the system prompt rather than added to the
+# user message, so a student cannot talk the patient back into English by
+# asking — the language is a property of the simulation, not of the turn.
+# --------------------------------------------------------------------------
+
+_LANGUAGE_RULES = {
+    "en": "",
+    "ru": (
+        "\n\nLANGUAGE\nWrite in Russian. Natural, idiomatic Russian as a "
+        "native speaker would say it — not a translation of English phrasing. "
+        "Keep clinical terms in standard Russian medical usage. Never switch "
+        "to English, whatever language the student writes in."
+    ),
+    "uz": (
+        "\n\nLANGUAGE\nWrite in Uzbek, Latin script. Natural, idiomatic Uzbek "
+        "as a native speaker would say it — not a translation of English "
+        "phrasing. Use the correct orthography: oʻ and gʻ, and ʼ for the "
+        "glottal stop (maʼlumot). Where Uzbek clinical practice uses an "
+        "international term (pnevmoniya, sepsis), use it rather than "
+        "inventing a calque. Never switch to English or Russian, whatever "
+        "language the student writes in."
+    ),
+}
+
+
+def _with_language(system_prompt: str, lang: str) -> str:
+    return system_prompt + _LANGUAGE_RULES.get(lang, "")
+
+
 PATIENT_SYSTEM_PROMPT = """You are playing a patient in a clinical training \
 simulation for medical students. You are the patient, never the clinician.
 
@@ -124,11 +162,13 @@ def patient_says(
     situation: str,
     authored_line: str,
     student_message: str = "",
+    lang: str = "en",
 ) -> Narration:
     """The patient's line for the current stage, in their own voice.
 
     `authored_line` is both the fallback and the intent: the model is asked to
-    deliver that content naturally, not to invent new content.
+    deliver that content naturally, not to invent new content. It arrives
+    already translated, so the fallback is in the reader's language too.
     """
     if not authored_line and not student_message:
         return Narration(text="", used_model=False)
@@ -151,7 +191,7 @@ def patient_says(
         )
 
     return _generate(
-        system_prompt=PATIENT_SYSTEM_PROMPT,
+        system_prompt=_with_language(PATIENT_SYSTEM_PROMPT, lang),
         message=prompt,
         fallback=authored_line,
         max_output_tokens=settings.vp_max_output_tokens,
@@ -172,6 +212,7 @@ def debrief(
     max_score: int,
     passed: bool,
     decisions: List[Dict[str, object]],
+    lang: str = "en",
 ) -> Narration:
     """Explain a finished run. The verdicts are inputs, not questions."""
     lines = []
@@ -198,7 +239,7 @@ def debrief(
     )
 
     return _generate(
-        system_prompt=DEBRIEF_SYSTEM_PROMPT,
+        system_prompt=_with_language(DEBRIEF_SYSTEM_PROMPT, lang),
         message=prompt,
         fallback=authored_debrief,
         max_output_tokens=settings.vp_debrief_max_output_tokens,
