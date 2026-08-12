@@ -25,7 +25,6 @@
     "debrief_md": "## The two minutes that mattered\n\nThe diagnosis here is not hard. The decision that changes outcomes is what happens at the front desk.\n\nMeasles is airborne and stays infectious in a room for up to two hours after the patient leaves. A febrile, coryzal, unimmunised child sitting in an open paediatric waiting area exposes every infant too young for MMR and every immunosuppressed child in it. Isolation comes before the history, not after it.\n\n## Notify on suspicion\n\nMeasles is a notifiable disease on **clinical suspicion**. Waiting for serology or PCR before telling public health costs the days in which contacts could still be offered post-exposure prophylaxis — MMR within 72 hours, or immunoglobulin for those who cannot have it.\n\n## Vitamin A\n\nTwo doses of vitamin A, 24 hours apart, reduce measles mortality. It is recommended for all children with measles in settings where it is available, not only where deficiency is endemic.\n\n## What to watch for\n\nOtitis media is the commonest complication; pneumonia is the commonest cause of death. Any drowsiness, seizure or behavioural change raises acute encephalitis. This child has none of those — but the safety-net advice is what catches the ones who develop them at home.",
     "pass_ratio": 0.6,
     "icon": "stethoscope",
-    "cover": "/lottie/boy-spots.json",
     "order": 1
   },
   "stages": [

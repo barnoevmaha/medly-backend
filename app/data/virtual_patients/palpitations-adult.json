@@ -25,7 +25,6 @@
     "debrief_md": "## The anchor\n\nThe referral said anxiety. Her GP said stress. She said it herself. Everything in the room pointed one way — and a heart rate of 186 does not care what the referral says.\n\nYoung women with cardiorespiratory symptoms are more likely than men to have those symptoms attributed to anxiety, and the misattribution is well documented. The defence is procedural rather than intellectual: in a patient with palpitations, the ECG happens before the diagnosis does.\n\n## Two things could kill her\n\nBoth were live on the history. She is on the combined pill and flew four days ago — that is a pulmonary embolism until it is reasoned away. And the rhythm itself was a regular narrow-complex tachycardia at 186.\n\nAnxiety is a diagnosis of exclusion here, not a starting point.\n\n## Treating the SVT\n\nVagal manoeuvres first — the modified Valsalva is markedly more effective than the standard one. Adenosine if that fails, with the patient warned about the awful few seconds it produces. Synchronised cardioversion if she becomes unstable. She was not unstable: her blood pressure was maintained and she was alert.",
     "pass_ratio": 0.6,
     "icon": "heart",
-    "cover": "/lottie/woman-stress.json",
     "order": 2
   },
   "stages": [

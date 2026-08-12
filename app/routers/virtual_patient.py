@@ -158,6 +158,10 @@ class CaseSummaryOut(BaseModel):
     # The caller's own in-progress run, if there is one.
     active_session_id: Optional[int] = None
     completed: bool = False
+    # How the patient is doing in that run, so the card can show the patient as
+    # the student left them rather than as a static thumbnail. Empty when there
+    # is no run in progress.
+    active_patient_state: str = ""
 
 
 class OptionOut(BaseModel):
@@ -186,7 +190,9 @@ class SessionOut(BaseModel):
     session_id: int
     case_slug: str
     # Enough of the patient to draw them: the figure needs the scenario's
-    # artwork and the age, or a 74-year-old is rendered as a young adult.
+    # artwork, the age and the sex, or a 74-year-old man is rendered as a young
+    # adult and a paediatric case is illustrated by the wrong person entirely.
+    patient_name: str = ""
     patient_age: int = 0
     patient_sex: str = ""
     cover: str = ""
@@ -239,6 +245,11 @@ class ResultOut(BaseModel):
     session_id: int
     case_slug: str
     case_title: str
+    # The debrief draws the patient too, and it should be the patient from the
+    # case rather than a generic adult.
+    patient_name: str = ""
+    patient_age: int = 0
+    patient_sex: str = ""
     status: str
     outcome: str
     passed: bool
@@ -327,6 +338,7 @@ def _session_out(
         session_id=run.id or 0,
         disclaimer=_disclaimer(lang),
         case_slug=case.slug,
+        patient_name=case.patient_name,
         patient_age=case.patient_age,
         patient_sex=case.patient_sex,
         cover=case.cover,
@@ -394,6 +406,7 @@ def list_cases(
                 completed=any(
                     r.status == SessionStatus.COMPLETED.value for r in runs
                 ),
+                active_patient_state=active.patient_state if active else "",
             )
         )
     return out
@@ -645,6 +658,9 @@ def get_result(
         disclaimer=_disclaimer(lang),
         case_slug=case.slug,
         case_title=localize.read(case, "title", lang),
+        patient_name=case.patient_name,
+        patient_age=case.patient_age,
+        patient_sex=case.patient_sex,
         status=run.status,
         outcome=run.outcome,
         passed=run.passed,

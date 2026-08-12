@@ -25,7 +25,6 @@
     "debrief_md": "## Migration is the sign\n\nPeriumbilical pain that moves to the right iliac fossa over 12 to 24 hours, with anorexia and one episode of vomiting *after* the pain began, is the classic sequence. The order matters: vomiting before pain points elsewhere.\n\n## Analgesia does not mask it\n\nThe belief that opioids obscure the abdominal examination and delay diagnosis has been tested repeatedly and does not hold. Withholding analgesia from a child in pain makes the examination harder, not more reliable — a frightened, guarding child who will not let you near her abdomen tells you very little.\n\n## Scores support, they do not decide\n\nThe Alvarado and Paediatric Appendicitis scores are useful for stratifying, not for ruling out. A low score in a child with migratory pain and localised tenderness does not discharge her.\n\n## Imaging in children\n\nUltrasound first. It avoids ionising radiation in a child, and in experienced hands it is good at confirming. What it is not good at is excluding — a non-visualised appendix is not a normal appendix, which is why the answer to an equivocal scan in a child who still has signs is admission and serial examination, not discharge.",
     "pass_ratio": 0.6,
     "icon": "stethoscope",
-    "cover": "/lottie/stomach-ache.json",
     "order": 3
   },
   "stages": [
